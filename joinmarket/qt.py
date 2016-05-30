@@ -529,8 +529,8 @@ class SettingsDialog(QDialog):
         grid = QGridLayout()
         self.settingsFields = []
         j = 0
-        #Simplify: just one section; most internal settings
-        #are not relevant for Electrum
+        #Simplified from Joinmarket-Qt: just one section;
+        #most internal settings are not relevant for Electrum
         section = "GUI"
         pairs = jm_single().config.items(section)
         newSettingsFields = self.getSettingsFields(section,
@@ -619,6 +619,8 @@ class Plugin(BasePlugin):
         return True
 
     def settings_widget(self, window):
+        """Create the settings button
+        """
         self.settings_window = window
         return EnterButton(_('Settings'), self.settings_dialog)
 
@@ -632,13 +634,16 @@ class Plugin(BasePlugin):
         if not d.exec_():
             return
 
-        server = str(server_e.text())
-        username = str(username_e.text())
-        password = str(password_e.text())
-        
+    @hook
+    def on_new_window(self, window):
+        self.window = window
 
     @hook
     def load_wallet(self, wallet, window):
+        """The main entry point for the joinmarket
+        plugin; create the joinmarket tab and
+        initialize the joinmarket_core code.
+        """
         load_program_config()
         update_config_for_gui()
         #refuse to load the plugin for non-standard wallets.
@@ -657,18 +662,39 @@ class Plugin(BasePlugin):
 
     @hook
     def create_send_tab(self, grid):
-        #wallet = window.wallet
-        #history = wallet.get_history()
-        #if len(history) > 0:
+        """Add custom button for sending
+        via coinjoin.
+        """
         print "creating custom send tab"
-        b = QPushButton(_("Manage Joinmarket"))
-        grid.addWidget(b)
+        b = QPushButton(_("Send with coinjoin"))
+        buttons = QHBoxLayout()
+        buttons.addWidget(b)
+        grid.addLayout(buttons, 7, 1, 1, 1)
         b.clicked.connect(lambda: self.show_joinmarket_tab(grid))
-        #else:
-        #    b = QPushButton(_("No history to plot"))
-        #   hbox.addWidget(b)
-
 
     def show_joinmarket_tab(self, obj):
-        self.jmtab.show()
-        self.jmtab.setWindowTitle("Settings")
+        """Activate the joinmarket tab.
+        """
+        #set the joinmarket tab amount and destination
+        #fields, if they are already in the send tab.
+        amt_sats_from_send = self.window.amount_e.get_amount()
+        if not amt_sats_from_send:
+            amount_btc = ""
+        else:
+            #convert satoshis to bitcoins
+            amount_btc = str(Decimal(amt_sats_from_send) / Decimal('1e8'))
+        receiving_addr = self.window.payto_e.toPlainText()
+        if not receiving_addr:
+            receiving_addr = ""
+        self.jmtab.widgets[3][1].setText(amount_btc)
+        self.jmtab.widgets[0][1].setText(receiving_addr)
+
+        #It might be possible that the Joinmarket tab
+        #is not accessible, or the main window, hence
+        #the exception catch (nothing to do).
+        try:
+            ind = self.window.tabs.indexOf(self.jmtab)
+            self.window.tabs.setCurrentIndex(ind)
+        except:
+            return
+
