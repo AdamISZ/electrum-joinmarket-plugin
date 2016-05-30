@@ -644,7 +644,17 @@ class Plugin(BasePlugin):
         plugin; create the joinmarket tab and
         initialize the joinmarket_core code.
         """
-        load_program_config()
+        try:
+            load_program_config()
+        except:
+            JMQtMessageBox(window,
+                           "\n".join([
+                               "The joinmarket config failed to load.",
+                               "Make sure that blockchain_source = electrum",
+                               "is set in the joinmarket.cfg file."]),
+                           mbtype='warn',
+                           title="Error")
+            return
         update_config_for_gui()
         #refuse to load the plugin for non-standard wallets.
         if wallet.wallet_type != "standard":
