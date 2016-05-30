@@ -5,5 +5,6 @@ description = _(" ".join(["Ability to send payments as coinjoins with counterpar
                           "Paying minimal fees, you can immediately send your coins",
                           "with much better privacy. See https://github.com/joinmarket-org/joinmarket",
                           "for more details."]))
-requires =  []
+requires = [('joinmarket_core','github.com/Joinmarket-Org/joinmarket_core')]
+requires_wallet_type = ['standard']
 available_for = ['qt']
