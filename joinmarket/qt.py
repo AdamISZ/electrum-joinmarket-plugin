@@ -58,10 +58,10 @@ def update_config_for_gui():
 
 
 
-def persist_config():
+def persist_config(file_path):
     '''This loses all comments in the config file.
     TODO: possibly correct that.'''
-    with open('joinmarket.cfg', 'w') as f:
+    with open(file_path, 'w') as f:
         jm_single().config.write(f)
 
 class TaskThread(QtCore.QThread):
@@ -512,13 +512,14 @@ class JoinmarketTab(QWidget):
 
 class SettingsDialog(QDialog):
 
-    def __init__(self):
+    def __init__(self, config_location):
         super(SettingsDialog, self).__init__()
+        self.config_location = config_location
         self.initUI()
 
     def closeEvent(self, event):
         log.debug("Closing settings and persisting")
-        persist_config()
+        persist_config(self.config_location)
         event.accept()
 
     def initUI(self):
@@ -629,7 +630,7 @@ class Plugin(BasePlugin):
         of the config variables that are still
         needed for Electrum.
         """
-        d = SettingsDialog()
+        d = SettingsDialog(self.config_location)
         d.setWindowTitle("Joinmarket settings")
         if not d.exec_():
             return
@@ -644,8 +645,13 @@ class Plugin(BasePlugin):
         plugin; create the joinmarket tab and
         initialize the joinmarket_core code.
         """
+        #refuse to load the plugin for non-standard wallets.
+        if wallet.wallet_type != "standard":
+            return
         try:
-            load_program_config()
+            self.config_location = os.path.join(window.config.path, "joinmarket.cfg")
+            self.logs_location = os.path.join(window.config.path, "logs")
+            load_program_config(self.config_location)
         except:
             JMQtMessageBox(window,
                            "\n".join([
@@ -655,10 +661,9 @@ class Plugin(BasePlugin):
                            mbtype='warn',
                            title="Error")
             return
+        if not os.path.exists(self.logs_location):
+            os.makedirs(self.logs_location)
         update_config_for_gui()
-        #refuse to load the plugin for non-standard wallets.
-        if wallet.wallet_type != "standard":
-            return
         #set the access to the network for the custom
         #dummy blockchain interface (reads blockchain via wallet.network)
         jm_single().bc_interface.set_wallet(wallet)
@@ -667,15 +672,13 @@ class Plugin(BasePlugin):
         self.account = self.window.current_account
         self.wrap_wallet = ElectrumWrapWallet(self.wallet, self.account)
         self.jmtab = JoinmarketTab(self)
-        self.jmtab.updateConsoleText("blah")
-        window.tabs.addTab(self.jmtab, _('Joinmarket'))
+        self.window.tabs.addTab(self.jmtab, _('Joinmarket'))
 
     @hook
     def create_send_tab(self, grid):
         """Add custom button for sending
         via coinjoin.
         """
-        print "creating custom send tab"
         b = QPushButton(_("Send with coinjoin"))
         buttons = QHBoxLayout()
         buttons.addWidget(b)
@@ -691,7 +694,7 @@ class Plugin(BasePlugin):
         if not amt_sats_from_send:
             amount_btc = ""
         else:
-            #convert satoshis to bitcoins
+            #convert satoshis to bitcoins; uses 8 d.p.
             amount_btc = str(Decimal(amt_sats_from_send) / Decimal('1e8'))
         receiving_addr = self.window.payto_e.toPlainText()
         if not receiving_addr:
