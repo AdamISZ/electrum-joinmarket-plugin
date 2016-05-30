@@ -26,6 +26,20 @@ log = get_log()
 donation_address = '1LT6rwv26bV7mgvRosoSCyGM7ttVRsYidP'
 donation_address_testnet = 'mz6FQosuiNe8135XaQqWYmXsa3aD8YsqGL'
 
+#configuration types
+config_types = {'check_high_fee': int,
+                'txfee_default': int,
+                'order_wait_time': int
+                }
+config_tips = {
+    'check_high_fee': 'Percent fee considered dangerously high, default 2%',
+    'txfee_default': 'Number of satoshis per counterparty for an initial\n' +
+    'tx fee estimate; this value is not usually used and is best left at\n' +
+    'the default of 5000',
+    'order_wait_time': 'How long to wait for orders to arrive on entering\n' +
+    'the message channel, default is 30s'
+}
+
 def update_config_for_gui():
     '''The default joinmarket config does not contain these GUI settings
     (they are generally set by command line flags or not needed).
@@ -33,19 +47,15 @@ def update_config_for_gui():
     These *will* be persisted to joinmarket.cfg, but that will not affect
     operation of the command line version.
     '''
-    gui_config_names = ['gaplimit', 'history_file', 'check_high_fee',
-                        'max_mix_depth', 'txfee_default', 'order_wait_time']
-    gui_config_default_vals = ['6', 'jm-tx-history.txt', '2', '5', '5000', '8']
+    gui_config_names = ['check_high_fee', 'txfee_default', 'order_wait_time']
+    gui_config_default_vals = ['2', '5000', '30']
     if "GUI" not in jm_single().config.sections():
         jm_single().config.add_section("GUI")
     gui_items = jm_single().config.items("GUI")
     for gcn, gcv in zip(gui_config_names, gui_config_default_vals):
         if gcn not in [_[0] for _ in gui_items]:
             jm_single().config.set("GUI", gcn, gcv)
-    #Extra setting not exposed to the GUI, but only for the GUI app
-    if 'privacy_warning' not in [_[0] for _ in gui_items]:
-        print 'overwriting privacy_warning'
-        jm_single().config.set("GUI", 'privacy_warning', '1')
+
 
 
 def persist_config():
@@ -216,12 +226,6 @@ class JoinmarketTab(QWidget):
         buttons.addWidget(self.abortButton)
         innerTopLayout.addLayout(buttons, len(self.widgets) + 1, 0, 1, 2)
         splitter1 = QSplitter(QtCore.Qt.Vertical)
-        #Possible code for displaying existing utxos
-        #self.tHTW = MyTreeWidget(self, self.create_menu, self.getHeaders())
-        #self.tHTW.setSelectionMode(QAbstractItemView.ExtendedSelection)
-        #self.tHTW.header().setResizeMode(QHeaderView.Interactive)
-        #self.tHTW.header().setStretchLastSection(False)
-        #self.tHTW.on_update = self.updateAvailableCoins       
         self.textedit = QTextEdit()
         self.textedit.verticalScrollBar().rangeChanged.connect(
             self.resizeScroll)
@@ -232,10 +236,6 @@ class JoinmarketTab(QWidget):
         splitter1.setSizes([400, 200])
         self.setLayout(vbox)
         vbox.addWidget(splitter1)
-
-    def getHeaders(self):
-        '''Function included in case dynamic in future'''
-        return ['Address', 'Amount in BTC', 'Transaction id', 'index']
         
     def updateConsoleText(self, txt):
         self.textedit.insertPlainText(txt)
@@ -247,31 +247,6 @@ class JoinmarketTab(QWidget):
                            "Bitcoin address not valid.\n" + errmsg,
                            mbtype='warn',
                            title="Error")
-
-    """Possible code for displaying utxos:
-    def updateAvailableCoins(self, coins=None):
-        self.tHTW.clear()        
-        if not coins:
-            coins = self.plugin.wallet.get_available_coins()
-        res = []
-        
-        #output = {
-        #            'address':addr,
-        #            'value':value,
-        #            'prevout_n':int(prevout_n),
-        #            'prevout_hash':prevout_hash,
-        #            'height':tx_height,
-        #            'coinbase':is_cb
-        #        }
-                
-        for c in coins:
-            c_fmt = ",".join([str(x) for x in [c["address"], c["value"],
-                                c["prevout_hash"], c["prevout_n"]]])            
-            t_item = QTreeWidgetItem(c_fmt.split(","))
-            self.tHTW.addChild(t_item)
-        for i in range(4):
-            self.tHTW.resizeColumnToContents(i)
-"""
 
     def validateSettings(self):
         valid, errmsg = validate_address(self.widgets[0][1].text())
@@ -298,10 +273,12 @@ class JoinmarketTab(QWidget):
             return
 
         #all settings are valid; start
-        JMQtMessageBox(
-            self,
-            "Connecting to IRC.\nView real-time log in the lower pane.",
-            title="Sendpayment")
+        #Disabling for now; interrupts workflow unnecessarily.
+        #May need to revisit in future.
+        #JMQtMessageBox(
+        #    self,
+        #    "Connecting to IRC.\nView real-time log in the lower pane.",
+        #    title="Sendpayment")
         self.startButton.setEnabled(False)
         self.abortButton.setEnabled(True)
 
@@ -318,7 +295,6 @@ class JoinmarketTab(QWidget):
         #ignoring mixdepth for now
         #mixdepth = int(self.widgets[2][1].text())
         mixdepth = 0
-        log.debug("ready to start sp")
         if self.plugin.wallet.use_encryption:
             msg = []
             msg.append(_("Enter your password to proceed"))
@@ -346,7 +322,6 @@ class JoinmarketTab(QWidget):
         self.pt = PT(self.taker)
         if ignored_makers:
             self.pt.ignored_makers.extend(ignored_makers)
-        log.debug("About to start task thread")
         
         thread = TaskThread(self)
         thread.add(self.runIRC, on_done=self.cleanUp)
@@ -377,6 +352,7 @@ class JoinmarketTab(QWidget):
         if self.taker.amount == 0:
             self.btc_amount_str = str((Decimal(self.cjamount) / Decimal('1e8')))
 
+        #TODO separate this out into a function
         mbinfo = []
         if joinmarket_alert[0]:
             mbinfo.append("<b><font color=red>JOINMARKET ALERT: " +
@@ -482,15 +458,7 @@ class JoinmarketTab(QWidget):
                            "Transaction has been broadcast.\n" + "Txid: " +
                            str(self.taker.txid),
                            title="Success")
-            #persist the transaction to history
-            with open(jm_single().config.get("GUI", "history_file"), 'ab') as f:
-                f.write(','.join([self.destaddr, self.btc_amount_str,
-                                  self.taker.txid, datetime.datetime.now(
-                                  ).strftime("%Y/%m/%d %H:%M:%S")]))
-                f.write('\n')  #TODO: Windows
-            #update the TxHistory tab; not for electrum
-            #txhist = w.centralWidget().widget(3)
-            #txhist.updateTxInfo()
+            #no history persistence necessary for Electrum; Electrum does it.
 
         self.startButton.setEnabled(True)
         self.abortButton.setEnabled(False)
@@ -509,31 +477,6 @@ class JoinmarketTab(QWidget):
         sbmsg = [_("JoinMarket:")]
         sbmsg.append(_(msg))
         self.plugin.window.statusBar().showMessage("".join(sbmsg))
-
-    def create_menu(self, position):
-        item = self.tHTW.currentItem()
-        if not item:
-            return
-        address_valid = False
-        if item:
-            address = str(item.text(0))
-            address_valid = True
-            #try:
-            #    btc.b58check_to_hex(address)
-            #    address_valid = True
-            #except AssertionError:
-            #    log.debug('no btc address found, not creating menu item')
-
-        menu = QMenu()
-        if address_valid:
-            menu.addAction("Copy address to clipboard",
-                           lambda: app.clipboard().setText(address))
-        menu.addAction("Copy transaction id to clipboard",
-                       lambda: app.clipboard().setText(str(item.text(2))))
-        menu.addAction("Copy full tx info to clipboard",
-                       lambda: app.clipboard().setText(
-                           ','.join([str(item.text(_)) for _ in range(4)])))
-        menu.exec_(self.tHTW.viewport().mapToGlobal(position))
 
     def getSettingsWidgets(self):
         results = []
@@ -567,6 +510,106 @@ class JoinmarketTab(QWidget):
         self.textedit.verticalScrollBar().setValue(maxi)    
 
 
+class SettingsDialog(QDialog):
+
+    def __init__(self):
+        super(SettingsDialog, self).__init__()
+        self.initUI()
+
+    def closeEvent(self, event):
+        log.debug("Closing settings and persisting")
+        persist_config()
+        event.accept()
+
+    def initUI(self):
+        outerGrid = QGridLayout()
+        sA = QScrollArea()
+        sA.setWidgetResizable(True)
+        frame = QFrame()
+        grid = QGridLayout()
+        self.settingsFields = []
+        j = 0
+        #Simplify: just one section; most internal settings
+        #are not relevant for Electrum
+        section = "GUI"
+        pairs = jm_single().config.items(section)
+        newSettingsFields = self.getSettingsFields(section,
+                                                   [_[0] for _ in pairs])
+        self.settingsFields.extend(newSettingsFields)
+        sL = QLabel(section)
+        sL.setStyleSheet("QLabel {color: blue;}")
+        grid.addWidget(sL)
+        j += 1
+        for k, ns in enumerate(newSettingsFields):
+            grid.addWidget(ns[0], j, 0)
+            #try to find the tooltip for this label from config tips;
+            #it might not be there
+            if str(ns[0].text()) in config_tips:
+                ttS = config_tips[str(ns[0].text())]
+                ns[0].setToolTip(ttS)
+            grid.addWidget(ns[1], j, 1)
+            sfindex = len(self.settingsFields) - len(newSettingsFields) + k
+            if isinstance(ns[1], QCheckBox):
+                ns[1].toggled.connect(lambda checked, s=section,
+                                      q=sfindex: self.handleEdit(
+                                s, self.settingsFields[q], checked))
+            else:
+                ns[1].editingFinished.connect(
+                lambda q=sfindex, s=section: self.handleEdit(s,
+                                                  self.settingsFields[q]))
+            j += 1
+        outerGrid.addWidget(sA)
+        sA.setWidget(frame)
+        frame.setLayout(grid)
+        frame.adjustSize()
+        self.setLayout(outerGrid)
+        self.show()
+
+    def handleEdit(self, section, t, checked=None):
+        if isinstance(t[1], QCheckBox):
+            if str(t[0].text()) == 'Testnet':
+                oname = 'network'
+                oval = 'testnet' if checked else 'mainnet'
+                add = '' if not checked else ' - Testnet'
+                w.setWindowTitle(appWindowTitle + add)
+            else:
+                oname = str(t[0].text())
+                oval = 'true' if checked else 'false'
+            log.debug('setting section: ' + section + ' and name: ' + oname +
+                      ' to: ' + oval)
+            jm_single().config.set(section, oname, oval)
+
+        else:  #currently there is only QLineEdit
+            log.debug('setting section: ' + section + ' and name: ' + str(t[
+                0].text()) + ' to: ' + str(t[1].text()))
+            jm_single().config.set(section, str(t[0].text()), str(t[1].text()))
+            if str(t[0].text()) == 'blockchain_source':
+                jm_single().bc_interface = get_blockchain_interface_instance(
+                    jm_single().config)
+
+    def getSettingsFields(self, section, names):
+        results = []
+        for name in names:
+            val = jm_single().config.get(section, name)
+            if name in config_types:
+                t = config_types[name]
+                if t == bool:
+                    qt = QCheckBox()
+                    if val == 'testnet' or val.lower() == 'true':
+                        qt.setChecked(True)
+                elif not t:
+                    continue
+                else:
+                    qt = QLineEdit(val)
+                    if t == int:
+                        qt.setValidator(QIntValidator(0, 65535))
+            else:
+                qt = QLineEdit(val)
+            label = 'Testnet' if name == 'network' else name
+            results.append((QLabel(label), qt))
+        return results
+
+
 class Plugin(BasePlugin):
         
     def is_available(self):
@@ -580,36 +623,12 @@ class Plugin(BasePlugin):
         return EnterButton(_('Settings'), self.settings_dialog)
 
     def settings_dialog(self, x):
-        """Present settings as per joinmarket.cfg;
-        see earlier Settings Tab in Joinmarket-Qt
-        TODO
+        """Present settings for that subset
+        of the config variables that are still
+        needed for Electrum.
         """
-        d = QDialog(self.settings_window)
+        d = SettingsDialog()
         d.setWindowTitle("Joinmarket settings")
-        d.setMinimumSize(500, 200)
-
-        vbox = QVBoxLayout(d)
-        vbox.addWidget(QLabel(_('Options')))
-        grid = QGridLayout()
-        vbox.addLayout(grid)
-        grid.addWidget(QLabel('Option 1'), 0, 0)
-        server_e = QLineEdit()
-        server_e.setText("bloo")
-        grid.addWidget(server_e, 0, 1)
-
-        grid.addWidget(QLabel('Option 2'), 1, 0)
-        username_e = QLineEdit()
-        username_e.setText("blah")
-        grid.addWidget(username_e, 1, 1)
-
-        grid.addWidget(QLabel('Option 3'), 2, 0)
-        password_e = QLineEdit()
-        password_e.setText("superuser")
-        grid.addWidget(password_e, 2, 1)
-
-        vbox.addStretch()
-        vbox.addLayout(Buttons(CloseButton(d), OkButton(d)))
-
         if not d.exec_():
             return
 
