@@ -620,9 +620,11 @@ class Plugin(BasePlugin):
 
     @hook
     def load_wallet(self, wallet, window):
-        print "load wallet hook triggered"
         load_program_config()
         update_config_for_gui()
+        #refuse to load the plugin for non-standard wallets.
+        if wallet.wallet_type != "standard":
+            return
         #set the access to the network for the custom
         #dummy blockchain interface (reads blockchain via wallet.network)
         jm_single().bc_interface.set_wallet(wallet)
