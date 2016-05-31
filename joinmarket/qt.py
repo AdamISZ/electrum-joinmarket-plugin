@@ -167,6 +167,41 @@ class JoinmarketTab(QWidget):
         innerTopLayout.setSpacing(4)
         iFrame.setLayout(innerTopLayout)
 
+        innerTopLayout.addLayout(self.getDonationLayout(), 0, 0, 1, 2)
+
+        self.widgets = self.getSettingsWidgets()
+        for i, x in enumerate(self.widgets):
+            innerTopLayout.addWidget(x[0], i + 1, 0)
+            innerTopLayout.addWidget(x[1], i + 1, 1, 1, 2)
+        self.widgets[0][1].editingFinished.connect(
+            lambda: self.checkAddress(self.widgets[0][1].text()))
+        self.startButton = QPushButton('Start')
+        self.startButton.setToolTip(
+            'You will be prompted to decide whether to accept\n' +
+            'the transaction after connecting, and shown the\n' +
+            'fees to pay; you can cancel at that point if you wish.')
+        self.startButton.clicked.connect(self.startSendPayment)
+        #TODO: how to make the Abort button work, at least some of the time..
+        self.abortButton = QPushButton('Abort')
+        self.abortButton.setEnabled(False)
+        buttons = QHBoxLayout()
+        buttons.addStretch(1)
+        buttons.addWidget(self.startButton)
+        buttons.addWidget(self.abortButton)
+        innerTopLayout.addLayout(buttons, len(self.widgets) + 1, 0, 1, 2)
+        splitter1 = QSplitter(QtCore.Qt.Vertical)
+        self.textedit = QTextEdit()
+        self.textedit.verticalScrollBar().rangeChanged.connect(
+            self.resizeScroll)
+        XStream.stdout().messageWritten.connect(self.updateConsoleText)
+        XStream.stderr().messageWritten.connect(self.updateConsoleText)
+        splitter1.addWidget(top)
+        splitter1.addWidget(self.textedit)
+        splitter1.setSizes([400, 200])
+        self.setLayout(vbox)
+        vbox.addWidget(splitter1)
+
+    def getDonationLayout(self):
         donateLayout = QHBoxLayout()
         self.donateCheckBox = QCheckBox()
         self.donateCheckBox.setChecked(False)
@@ -203,40 +238,8 @@ class JoinmarketTab(QWidget):
         donateLayout.setAlignment(label3, QtCore.Qt.AlignLeft)
         donateLayout.addWidget(label3)
         donateLayout.addStretch(1)
-        innerTopLayout.addLayout(donateLayout, 0, 0, 1, 2)
+        return donateLayout
 
-        self.widgets = self.getSettingsWidgets()
-        for i, x in enumerate(self.widgets):
-            innerTopLayout.addWidget(x[0], i + 1, 0)
-            innerTopLayout.addWidget(x[1], i + 1, 1, 1, 2)
-        self.widgets[0][1].editingFinished.connect(
-            lambda: self.checkAddress(self.widgets[0][1].text()))
-        self.startButton = QPushButton('Start')
-        self.startButton.setToolTip(
-            'You will be prompted to decide whether to accept\n' +
-            'the transaction after connecting, and shown the\n' +
-            'fees to pay; you can cancel at that point if you wish.')
-        self.startButton.clicked.connect(self.startSendPayment)
-        #TODO: how to make the Abort button work, at least some of the time..
-        self.abortButton = QPushButton('Abort')
-        self.abortButton.setEnabled(False)
-        buttons = QHBoxLayout()
-        buttons.addStretch(1)
-        buttons.addWidget(self.startButton)
-        buttons.addWidget(self.abortButton)
-        innerTopLayout.addLayout(buttons, len(self.widgets) + 1, 0, 1, 2)
-        splitter1 = QSplitter(QtCore.Qt.Vertical)
-        self.textedit = QTextEdit()
-        self.textedit.verticalScrollBar().rangeChanged.connect(
-            self.resizeScroll)
-        XStream.stdout().messageWritten.connect(self.updateConsoleText)
-        XStream.stderr().messageWritten.connect(self.updateConsoleText)
-        splitter1.addWidget(top)
-        splitter1.addWidget(self.textedit)
-        splitter1.setSizes([400, 200])
-        self.setLayout(vbox)
-        vbox.addWidget(splitter1)
-        
     def updateConsoleText(self, txt):
         self.textedit.insertPlainText(txt)
 
@@ -685,10 +688,13 @@ class Plugin(BasePlugin):
         b = QPushButton(_("Send with coinjoin"))
         buttons = QHBoxLayout()
         buttons.addWidget(b)
+        #TODO this seems to be dependent on a fixed send tab
+        #grid layout; there should be a better way than hardcoded
+        #positions.
         grid.addLayout(buttons, 7, 1, 1, 1)
-        b.clicked.connect(lambda: self.show_joinmarket_tab(grid))
+        b.clicked.connect(lambda: self.show_joinmarket_tab())
 
-    def show_joinmarket_tab(self, obj):
+    def show_joinmarket_tab(self):
         """Activate the joinmarket tab.
         """
         #set the joinmarket tab amount and destination
