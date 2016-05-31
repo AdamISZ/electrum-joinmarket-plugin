@@ -13,7 +13,7 @@ from electrum.util import format_satoshis
 from electrum.bitcoin import COIN
 
 from electrum_gui.qt.util import *
-
+from electrum_gui.qt.amountedit import BTCAmountEdit
 sys.path.insert(0, os.path.dirname(__file__))
 
 #import joinmarket
@@ -165,6 +165,7 @@ class JoinmarketTab(QWidget):
             "randomly chosen but preferring cheaper offers": weighted_order_choose,
             "choose counterparties manually": weighted_order_choose}
         self.initUI()
+        self.taker = None
 
     def initUI(self):
         vbox = QVBoxLayout(self)
@@ -231,7 +232,7 @@ class JoinmarketTab(QWidget):
             return False
         errs = ["Non-zero number of counterparties must be provided.",
                 "Mixdepth must be chosen.",
-                "Amount, in bitcoins, must be provided."]
+                "Amount must be provided."]
         for i in [1,3]:
             if self.widgets[i][1].text().size() == 0:
                 JMQtMessageBox(self, errs[i - 1], mbtype='warn', title="Error")
@@ -241,8 +242,9 @@ class JoinmarketTab(QWidget):
         if self.widgets[1][1].text() == '0':
             JMQtMessageBox(self, errs[0], mbtype='warn', title="Error")
             return False
+        if self.widgets[3][1].get_amount() <= 0:
+            return False
         cc = str(self.widgets[2][1].itemText(self.widgets[2][1].currentIndex()))
-        log.debug("Chose: " + cc)
         self.choice_algo = self.c_choosers[cc]
         return True
 
@@ -268,7 +270,7 @@ class JoinmarketTab(QWidget):
         self.destaddr = str(self.widgets[0][1].text())
         #convert from bitcoins (enforced by QDoubleValidator) to satoshis
         self.btc_amount_str = str(self.widgets[3][1].text())
-        amount = int(Decimal(self.btc_amount_str) * Decimal('1e8'))
+        amount = self.widgets[3][1].get_amount()
         makercount = int(self.widgets[1][1].text())
         #ignoring mixdepth for now
         #mixdepth = int(self.widgets[2][1].text())
@@ -438,7 +440,8 @@ class JoinmarketTab(QWidget):
         #re-require password for next try
         self.plugin.wrap_wallet.password = None
         log.debug("Transaction aborted.")
-        self.taker.msgchan.shutdown()
+        if self.taker:
+            self.taker.msgchan.shutdown()
         self.abortButton.setEnabled(False)
         self.startButton.setEnabled(True)
         self.showStatusBarMsg("Transaction aborted.")
@@ -452,15 +455,15 @@ class JoinmarketTab(QWidget):
         results = []
         sN = ['Recipient address', 'Number of counterparties',
               'Counterparty chooser',
-              'Amount in bitcoins (BTC)']
+              'Amount']
         sH = ['The address you want to send the payment to',
               'How many other parties to send to; if you enter 4\n' +
               ', there will be 5 participants, including you',
               'Mechanism for choosing counterparties',
-              'The amount IN BITCOINS to send.\n' +
+              'The amount to send (units are shown).\n' +
               'If you enter 0, a SWEEP transaction\nwill be performed,' +
               ' spending all the coins \nin the given mixdepth.']
-        sT = [str, int, str, float]
+        sT = [str, int, str, None]
         #todo maxmixdepth
         sMM = ['', (2, 20),
                '',
@@ -473,10 +476,10 @@ class JoinmarketTab(QWidget):
             ql = QLabel(x[0])
             ql.setToolTip(x[1])
             qle = QLineEdit(x[3]) if x[0] != "Counterparty chooser" else ccCombo
+            if x[0] == "Amount":
+                qle = BTCAmountEdit(self.plugin.window.get_decimal_point)
             if x[2] == int:
                 qle.setValidator(QIntValidator(*x[4]))
-            if x[2] == float:
-                qle.setValidator(QDoubleValidator(*x[4]))
             results.append((ql, qle))
         return results
     
@@ -681,7 +684,7 @@ class Plugin(BasePlugin):
         receiving_addr = self.window.payto_e.toPlainText()
         if not receiving_addr:
             receiving_addr = ""
-        self.jmtab.widgets[3][1].setText(amount_btc)
+        self.jmtab.widgets[3][1].setAmount(amt_sats_from_send)
         self.jmtab.widgets[0][1].setText(receiving_addr)
 
         #It might be possible that the Joinmarket tab
