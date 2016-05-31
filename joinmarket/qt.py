@@ -29,7 +29,11 @@ donation_address_testnet = 'mz6FQosuiNe8135XaQqWYmXsa3aD8YsqGL'
 #configuration types
 config_types = {'check_high_fee': int,
                 'txfee_default': int,
-                'order_wait_time': int
+                'order_wait_time': int,
+                'port': int,
+                'usessl': bool,
+                'socks5': bool,
+                'socks5_port': int,
                 }
 config_tips = {
     'check_high_fee': 'Percent fee considered dangerously high, default 2%',
@@ -37,7 +41,14 @@ config_tips = {
     'tx fee estimate; this value is not usually used and is best left at\n' +
     'the default of 5000',
     'order_wait_time': 'How long to wait for orders to arrive on entering\n' +
-    'the message channel, default is 30s'
+    'the message channel, default is 30s',
+    'host': 'hostname for IRC server',
+    'channel': 'channel name on IRC server',
+    'port': 'port for connecting to IRC server',
+    'usessl': 'check to use SSL for connection to IRC',
+    'socks5': 'check to use SOCKS5 proxy for IRC connection',
+    'socks5_host': 'host for SOCKS5 proxy',
+    'socks5_port': 'port for SOCKS5 proxy',
 }
 
 def update_config_for_gui():
