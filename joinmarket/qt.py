@@ -161,6 +161,9 @@ class JoinmarketTab(QWidget):
     def __init__(self, plugin):
         super(JoinmarketTab, self).__init__()
         self.plugin = plugin
+        self.c_choosers = {
+            "randomly chosen but preferring cheaper offers": weighted_order_choose,
+            "choose counterparties manually": weighted_order_choose}
         self.initUI()
 
     def initUI(self):
@@ -229,7 +232,7 @@ class JoinmarketTab(QWidget):
         errs = ["Non-zero number of counterparties must be provided.",
                 "Mixdepth must be chosen.",
                 "Amount, in bitcoins, must be provided."]
-        for i in range(1, 4):
+        for i in [1,3]:
             if self.widgets[i][1].text().size() == 0:
                 JMQtMessageBox(self, errs[i - 1], mbtype='warn', title="Error")
                 return False
@@ -238,13 +241,15 @@ class JoinmarketTab(QWidget):
         if self.widgets[1][1].text() == '0':
             JMQtMessageBox(self, errs[0], mbtype='warn', title="Error")
             return False
+        cc = str(self.widgets[2][1].itemText(self.widgets[2][1].currentIndex()))
+        log.debug("Chose: " + cc)
+        self.choice_algo = self.c_choosers[cc]
         return True
 
     def startSendPayment(self, ignored_makers=None):
         self.aborted = False
         if not self.validateSettings():
             return
-
         #all settings are valid; start
         #Disabling for now; interrupts workflow unnecessarily.
         #May need to revisit in future.
@@ -445,25 +450,29 @@ class JoinmarketTab(QWidget):
 
     def getSettingsWidgets(self):
         results = []
-        sN = ['Recipient address', 'Number of counterparties', 'Mixdepth',
+        sN = ['Recipient address', 'Number of counterparties',
+              'Counterparty chooser',
               'Amount in bitcoins (BTC)']
         sH = ['The address you want to send the payment to',
               'How many other parties to send to; if you enter 4\n' +
               ', there will be 5 participants, including you',
-              'The mixdepth of the wallet to send the payment from',
+              'Mechanism for choosing counterparties',
               'The amount IN BITCOINS to send.\n' +
               'If you enter 0, a SWEEP transaction\nwill be performed,' +
               ' spending all the coins \nin the given mixdepth.']
-        sT = [str, int, int, float]
+        sT = [str, int, str, float]
         #todo maxmixdepth
         sMM = ['', (2, 20),
-               (0, 4),
+               '',
                (0.00000001, 100.0, 8)]
-        sD = ['', '3', '0', '']
+        sD = ['', '3', '', '']
+        ccCombo = QComboBox()
+        for c in self.c_choosers.keys():
+            ccCombo.addItem(c)
         for x in zip(sN, sH, sT, sD, sMM):
             ql = QLabel(x[0])
             ql.setToolTip(x[1])
-            qle = QLineEdit(x[3])
+            qle = QLineEdit(x[3]) if x[0] != "Counterparty chooser" else ccCombo
             if x[2] == int:
                 qle.setValidator(QIntValidator(*x[4]))
             if x[2] == float:
