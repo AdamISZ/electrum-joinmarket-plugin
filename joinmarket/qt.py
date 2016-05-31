@@ -461,7 +461,7 @@ class JoinmarketTab(QWidget):
         return results
     
     def resizeScroll(self, mini, maxi):
-        self.textedit.verticalScrollBar().setValue(maxi)    
+        self.textedit.verticalScrollBar().setValue(maxi)
 
 
 class SettingsDialog(QDialog):
@@ -514,6 +514,9 @@ class SettingsDialog(QDialog):
                                                   self.settingsFields[q]))
             j += 1
         outerGrid.addWidget(sA)
+        ok_button = QPushButton("OK")
+        ok_button.clicked.connect(self.accept)
+        outerGrid.addWidget(ok_button)
         sA.setWidget(frame)
         frame.setLayout(grid)
         frame.adjustSize()
