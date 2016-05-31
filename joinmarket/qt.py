@@ -521,6 +521,7 @@ class SettingsDialog(QDialog):
         frame.setLayout(grid)
         frame.adjustSize()
         self.setLayout(outerGrid)
+        self.setModal(True)
         self.show()
 
     def handleEdit(self, section, t, checked=None):
