@@ -167,12 +167,10 @@ class JoinmarketTab(QWidget):
         innerTopLayout.setSpacing(4)
         iFrame.setLayout(innerTopLayout)
 
-        innerTopLayout.addLayout(self.getDonationLayout(), 0, 0, 1, 2)
-
         self.widgets = self.getSettingsWidgets()
         for i, x in enumerate(self.widgets):
-            innerTopLayout.addWidget(x[0], i + 1, 0)
-            innerTopLayout.addWidget(x[1], i + 1, 1, 1, 2)
+            innerTopLayout.addWidget(x[0], i, 0)
+            innerTopLayout.addWidget(x[1], i, 1, 1, 2)
         self.widgets[0][1].editingFinished.connect(
             lambda: self.checkAddress(self.widgets[0][1].text()))
         self.startButton = QPushButton('Start')
@@ -200,45 +198,6 @@ class JoinmarketTab(QWidget):
         splitter1.setSizes([400, 200])
         self.setLayout(vbox)
         vbox.addWidget(splitter1)
-
-    def getDonationLayout(self):
-        donateLayout = QHBoxLayout()
-        self.donateCheckBox = QCheckBox()
-        self.donateCheckBox.setChecked(False)
-        self.donateCheckBox.setMaximumWidth(30)
-        self.donateLimitBox = QDoubleSpinBox()
-        self.donateLimitBox.setMinimum(0.001)
-        self.donateLimitBox.setMaximum(0.100)
-        self.donateLimitBox.setSingleStep(0.001)
-        self.donateLimitBox.setDecimals(3)
-        self.donateLimitBox.setValue(0.010)
-        self.donateLimitBox.setMaximumWidth(100)
-        self.donateLimitBox.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-
-        donateLayout.addWidget(self.donateCheckBox)
-        label1 = QLabel("Check to send change lower than: ")
-        label1.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        donateLayout.addWidget(label1)
-        donateLayout.setAlignment(label1, QtCore.Qt.AlignLeft)
-        donateLayout.addWidget(self.donateLimitBox)
-        donateLayout.setAlignment(self.donateLimitBox, QtCore.Qt.AlignLeft)
-        label2 = QLabel(" BTC as a donation.")
-        donateLayout.addWidget(label2)
-        label2.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        donateLayout.setAlignment(label2, QtCore.Qt.AlignLeft)
-        label3 = HelpLabel('More', '\n'.join(
-            ['If the calculated change for your transaction',
-             'is smaller than the value you choose (default 0.01 btc)',
-             'then that change is sent as a donation. If your change',
-             'is larger than that, there will be no donation.', '',
-             'As well as helping the developers, this feature can,',
-             'in certain circumstances, improve privacy, because there',
-             'is no change output that can be linked with your inputs later.']))
-        label3.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        donateLayout.setAlignment(label3, QtCore.Qt.AlignLeft)
-        donateLayout.addWidget(label3)
-        donateLayout.addStretch(1)
-        return donateLayout
 
     def updateConsoleText(self, txt):
         self.textedit.insertPlainText(txt)
@@ -398,17 +357,9 @@ class JoinmarketTab(QWidget):
             log.debug('You agreed, transaction proceeding')
             self.showStatusBarMsg("Building transaction...")
             thread3 = TaskThread(self)
-            log.debug("Trigger is: " + str(self.donateLimitBox.value()))
-            if get_network() == 'testnet':
-                da = donation_address_testnet
-            else:
-                da = donation_address
             thread3.add(
                 partial(self.pt.do_tx, self.total_cj_fee, self.orders,
-                        self.cjamount, self.utxos,
-                        self.donateCheckBox.isChecked(),
-                        self.donateLimitBox.value(), da),
-                on_done=None)
+                        self.cjamount, self.utxos), on_done=None)
         else:
             self.giveUp()
             return
