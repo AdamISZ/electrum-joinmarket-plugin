@@ -484,38 +484,39 @@ class SettingsDialog(QDialog):
         grid = QGridLayout()
         self.settingsFields = []
         j = 0
-        #Simplified from Joinmarket-Qt: just one section;
-        #most internal settings are not relevant for Electrum
-        section = "GUI"
-        pairs = jm_single().config.items(section)
-        newSettingsFields = self.getSettingsFields(section,
-                                                   [_[0] for _ in pairs])
-        self.settingsFields.extend(newSettingsFields)
-        sL = QLabel(section)
-        sL.setStyleSheet("QLabel {color: blue;}")
-        grid.addWidget(sL)
-        j += 1
-        for k, ns in enumerate(newSettingsFields):
-            grid.addWidget(ns[0], j, 0)
-            #try to find the tooltip for this label from config tips;
-            #it might not be there
-            if str(ns[0].text()) in config_tips:
-                ttS = config_tips[str(ns[0].text())]
-                ns[0].setToolTip(ttS)
-            grid.addWidget(ns[1], j, 1)
-            sfindex = len(self.settingsFields) - len(newSettingsFields) + k
-            if isinstance(ns[1], QCheckBox):
-                ns[1].toggled.connect(lambda checked, s=section,
-                                      q=sfindex: self.handleEdit(
-                                s, self.settingsFields[q], checked))
-            else:
-                ns[1].editingFinished.connect(
-                lambda q=sfindex, s=section: self.handleEdit(s,
-                                                  self.settingsFields[q]))
+        #Simplified from Joinmarket-Qt:
+        #many internal settings are not relevant for Electrum
+        sections = ["GUI", "MESSAGING"]
+        for section in sections:
+            pairs = jm_single().config.items(section)
+            newSettingsFields = self.getSettingsFields(section,
+                                                       [_[0] for _ in pairs])
+            self.settingsFields.extend(newSettingsFields)
+            sL = QLabel(section)
+            sL.setStyleSheet("QLabel {color: blue;}")
+            grid.addWidget(sL)
             j += 1
+            for k, ns in enumerate(newSettingsFields):
+                grid.addWidget(ns[0], j, 0)
+                #try to find the tooltip for this label from config tips;
+                #it might not be there
+                if str(ns[0].text()) in config_tips:
+                    ttS = config_tips[str(ns[0].text())]
+                    ns[0].setToolTip(ttS)
+                grid.addWidget(ns[1], j, 1)
+                sfindex = len(self.settingsFields) - len(newSettingsFields) + k
+                if isinstance(ns[1], QCheckBox):
+                    ns[1].toggled.connect(lambda checked, s=section,
+                                          q=sfindex: self.handleEdit(
+                                    s, self.settingsFields[q], checked))
+                else:
+                    ns[1].editingFinished.connect(
+                    lambda q=sfindex, s=section: self.handleEdit(s,
+                                                      self.settingsFields[q]))
+                j += 1
         outerGrid.addWidget(sA)
         ok_button = QPushButton("OK")
-        ok_button.clicked.connect(self.accept)
+        ok_button.clicked.connect(self.close)
         outerGrid.addWidget(ok_button)
         sA.setWidget(frame)
         frame.setLayout(grid)
@@ -542,9 +543,6 @@ class SettingsDialog(QDialog):
             log.debug('setting section: ' + section + ' and name: ' + str(t[
                 0].text()) + ' to: ' + str(t[1].text()))
             jm_single().config.set(section, str(t[0].text()), str(t[1].text()))
-            if str(t[0].text()) == 'blockchain_source':
-                jm_single().bc_interface = get_blockchain_interface_instance(
-                    jm_single().config)
 
     def getSettingsFields(self, section, names):
         results = []
