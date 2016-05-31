@@ -9,9 +9,8 @@ from collections import namedtuple
 
 import datetime, sys, os, base64, textwrap, re, math, json, logging
 import Queue, platform, csv, threading, time
-from electrum.util import format_satoshis
-from electrum.bitcoin import COIN
 
+from electrum.util import format_satoshis
 from electrum_gui.qt.util import *
 from electrum_gui.qt.amountedit import BTCAmountEdit
 sys.path.insert(0, os.path.dirname(__file__))
@@ -23,8 +22,6 @@ from joinmarket_core import load_program_config, get_network, Wallet, get_p2pk_v
 
 from sendpayment import SendPayment, PT
 log = get_log()
-donation_address = '1LT6rwv26bV7mgvRosoSCyGM7ttVRsYidP'
-donation_address_testnet = 'mz6FQosuiNe8135XaQqWYmXsa3aD8YsqGL'
 
 #configuration types
 config_types = {'check_high_fee': int,
@@ -242,8 +239,7 @@ class JoinmarketTab(QWidget):
         if self.widgets[1][1].text() == '0':
             JMQtMessageBox(self, errs[0], mbtype='warn', title="Error")
             return False
-        if self.widgets[3][1].get_amount() <= 0:
-            return False
+        #Note that a zero amount IS allowed (for sweep)
         cc = str(self.widgets[2][1].itemText(self.widgets[2][1].currentIndex()))
         self.choice_algo = self.c_choosers[cc]
         return True
@@ -591,7 +587,21 @@ class SettingsDialog(QDialog):
 
 
 class Plugin(BasePlugin):
-        
+
+    def __init__(self, parent, config, name):
+        BasePlugin.__init__(self, parent, config, name)
+        self.in_use = False
+        self.config_location = None
+        self.started = False
+
+    @hook
+    def init_qt(self, gui):
+        """We actually only support one
+        main ElectrumWindow; TODO perhaps simplify
+        """
+        for window in gui.windows:
+            self.on_new_window(window)
+
     def is_available(self):
         return True
 
@@ -602,9 +612,9 @@ class Plugin(BasePlugin):
         """Create the settings button
         """
         self.settings_window = window
-        return EnterButton(_('Settings'), self.settings_dialog)
+        return EnterButton(_('Settings'), partial(self.settings_dialog, window))
 
-    def settings_dialog(self, x):
+    def settings_dialog(self, window):
         """Present settings for that subset
         of the config variables that are still
         needed for Electrum.
@@ -616,17 +626,28 @@ class Plugin(BasePlugin):
 
     @hook
     def on_new_window(self, window):
-        self.window = window
-
-    @hook
-    def load_wallet(self, wallet, window):
-        """The main entry point for the joinmarket
-        plugin; create the joinmarket tab and
-        initialize the joinmarket_core code.
+        """Load the joinmarket tab/code into
+        this window only once.
         """
-        #refuse to load the plugin for non-standard wallets.
-        if wallet.wallet_type != "standard":
+        if not self.in_use:
+            self.load_wallet(window.wallet, window)
+            self.in_use = True
+
+    def on_close(self):
+        """Delete the joinmarket tab when the plugin
+        is closed/disabled.
+        """
+        jmtab_index = self.window.tabs.indexOf(self.jmtab)
+        if jmtab_index == -1:
+            log.debug("Weirdly the joinmarket tab doesnt exist")
             return
+        self.window.tabs.removeTab(jmtab_index)
+
+    def load_config(self, window):
+        """Load/instantiate the joinmarket config file
+        in electrum's home directory/joinmarket (e.g. ~/.electrum/joinmarket
+        Also load/instantiate the logs/ subdirectory for bot logs.
+        """
         try:
             jm_subdir = os.path.join(window.config.path, "joinmarket")
             if not os.path.exists(jm_subdir):
@@ -646,6 +667,23 @@ class Plugin(BasePlugin):
         if not os.path.exists(self.logs_location):
             os.makedirs(self.logs_location)
         update_config_for_gui()
+
+    @hook
+    def load_wallet(self, wallet, window):
+        """The main entry point for the joinmarket
+        plugin; create the joinmarket tab and
+        initialize the joinmarket_core code.
+        """
+        #can get called via direct hook or on_new_window
+        #(the latter happens if we just enabled it in the plugins menu).
+        #Insist on loading only once.
+        if self.started:
+            return
+        #refuse to load the plugin for non-standard wallets.
+        if wallet.wallet_type != "standard":
+            return
+        if not self.config_location:
+            self.load_config(window)
         #set the access to the network for the custom
         #dummy blockchain interface (reads blockchain via wallet.network)
         jm_single().bc_interface.set_wallet(wallet)
@@ -655,6 +693,7 @@ class Plugin(BasePlugin):
         self.wrap_wallet = ElectrumWrapWallet(self.wallet, self.account)
         self.jmtab = JoinmarketTab(self)
         self.window.tabs.addTab(self.jmtab, _('Joinmarket'))
+        self.started = True
 
     @hook
     def create_send_tab(self, grid):
@@ -672,6 +711,7 @@ class Plugin(BasePlugin):
 
     def show_joinmarket_tab(self):
         """Activate the joinmarket tab.
+        Cross-populate address and amount if they're set.
         """
         #set the joinmarket tab amount and destination
         #fields, if they are already in the send tab.
