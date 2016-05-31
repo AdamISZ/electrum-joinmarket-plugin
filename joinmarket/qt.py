@@ -649,9 +649,12 @@ class Plugin(BasePlugin):
         if wallet.wallet_type != "standard":
             return
         try:
-            self.config_location = os.path.join(window.config.path, "joinmarket.cfg")
-            self.logs_location = os.path.join(window.config.path, "logs")
-            load_program_config(self.config_location)
+            jm_subdir = os.path.join(window.config.path, "joinmarket")
+            if not os.path.exists(jm_subdir):
+                os.makedirs(jm_subdir)
+            self.config_location = os.path.join(jm_subdir, "joinmarket.cfg")
+            self.logs_location = os.path.join(jm_subdir, "logs")
+            load_program_config(jm_subdir, "electrum")
         except:
             JMQtMessageBox(window,
                            "\n".join([
