@@ -2,7 +2,7 @@ from PyQt4.QtGui import *
 from PyQt4 import QtCore
 from functools import partial
 from collections import namedtuple
-
+from decimal import Decimal
 import sys, os
 import Queue
 import logging
@@ -274,9 +274,11 @@ class JoinmarketTab(QWidget):
 
         self.irc = IRCMessageChannel(jm_single().nickname)
         self.destaddr = str(self.widgets[0][1].text())
-        #convert from bitcoins (enforced by QDoubleValidator) to satoshis
-        self.btc_amount_str = str(self.widgets[3][1].text())
+        #inherit format from BTCAmountEdit
+        self.btc_amount_str = str(
+            self.widgets[3][1].text()) + " " + self.widgets[3][1]._base_unit()
         amount = self.widgets[3][1].get_amount()
+        log.debug("Got amount: " + str(amount))
         makercount = int(self.widgets[1][1].text())
         #ignoring mixdepth for now
         #mixdepth = int(self.widgets[2][1].text())
@@ -336,7 +338,8 @@ class JoinmarketTab(QWidget):
 
         #reset the btc amount display string if it's a sweep:
         if self.taker.amount == 0:
-            self.btc_amount_str = str((Decimal(self.cjamount) / Decimal('1e8')))
+            self.btc_amount_str = str(
+                (Decimal(self.cjamount) / Decimal('1e8'))) + " BTC"
 
         #TODO separate this out into a function
         mbinfo = []
@@ -348,7 +351,7 @@ class JoinmarketTab(QWidget):
             mbinfo.append("<b><font color=red>BITCOIN CORE ALERT: " +
                           core_alert[0] + "</font></b>")
             mbinfo.append(" ")
-        mbinfo.append("Sending amount: " + self.btc_amount_str + " BTC")
+        mbinfo.append("Sending amount: " + self.btc_amount_str)
         mbinfo.append("to address: " + self.destaddr)
         mbinfo.append(" ")
         mbinfo.append("Counterparties chosen:")
