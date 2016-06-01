@@ -5,6 +5,7 @@ from collections import namedtuple
 
 import sys, os
 import Queue
+import logging
 
 from electrum.i18n import _
 from electrum_gui.qt.util import *
@@ -105,6 +106,19 @@ class TaskThread(QtCore.QThread):
 
     def stop(self):
         self.tasks.put(None)
+
+class QtHandler(logging.Handler):
+
+    def __init__(self):
+        logging.Handler.__init__(self)
+
+    def emit(self, record):
+        record = self.format(record)
+        if record: XStream.stdout().write('%s\n' % record)
+
+handler = QtHandler()
+handler.setFormatter(logging.Formatter("%(levelname)s:%(message)s"))
+log.addHandler(handler)
 
 class XStream(QtCore.QObject):
     _stdout = None
