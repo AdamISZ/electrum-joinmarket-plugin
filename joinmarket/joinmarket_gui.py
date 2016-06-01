@@ -167,9 +167,10 @@ class JoinmarketTab(QWidget):
     def __init__(self, plugin):
         super(JoinmarketTab, self).__init__()
         self.plugin = plugin
+        #manual counterparty choice disabled for now, see #7 on github.
         self.c_choosers = {
-            "randomly chosen but preferring cheaper offers": weighted_order_choose,
-            "choose counterparties manually": weighted_order_choose}
+            "randomly chosen but preferring cheaper offers": weighted_order_choose}
+        #,"choose counterparties manually": weighted_order_choose}
         self.initUI()
         self.taker = None
 
