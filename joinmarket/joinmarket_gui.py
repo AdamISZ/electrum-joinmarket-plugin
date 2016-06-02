@@ -318,7 +318,7 @@ class JoinmarketTab(QWidget):
         
         thread = TaskThread(self)
         thread.add(self.runIRC, on_done=self.cleanUp)
-        self.plugin.window.statusBar().showMessage("Connecting to IRC ...")
+        self.showStatusBarMsg("Connecting to IRC ...")
         thread2 = TaskThread(self)
         thread2.add(self.createTxThread, on_done=self.doTx)
 
@@ -461,9 +461,20 @@ class JoinmarketTab(QWidget):
         self.showStatusBarMsg("Transaction aborted.")
 
     def showStatusBarMsg(self, msg):
-        sbmsg = [_("JoinMarket:")]
+        """Slightly imperfect but seems to work for now;
+        Append the Joinmarket status to the end of the
+        current status message. Allow update_status to
+        "reclaim" the status message otherwise.
+        """
+        if not msg:
+            self.plugin.window.update_status()
+        sbmsg = [_("JoinMarket: ")]
         sbmsg.append(_(msg))
-        self.plugin.window.statusBar().showMessage("".join(sbmsg))
+        current_text = self.plugin.window.balance_label.text()
+        if "JoinMarket:" in current_text:
+            current_text = current_text[:current_text.index("JoinMarket:")]
+        new_text = current_text + " " + "".join(sbmsg)
+        self.plugin.window.statusBar().showMessage(new_text)
 
     def getSettingsWidgets(self):
         results = []
