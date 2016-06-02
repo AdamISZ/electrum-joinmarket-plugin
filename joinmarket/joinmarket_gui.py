@@ -259,12 +259,19 @@ class JoinmarketTab(QWidget):
         if not self.validateSettings():
             return
         #all settings are valid; start
-        #Disabling for now; interrupts workflow unnecessarily.
-        #May need to revisit in future.
-        #JMQtMessageBox(
-        #    self,
-        #    "Connecting to IRC.\nView real-time log in the lower pane.",
-        #    title="Sendpayment")
+        #If sweep was requested, make sure the user knew it.
+        amount = self.widgets[3][1].get_amount()
+        if amount == 0:
+            mbinfo = ["You selected amount zero, which means 'sweep'."]
+            mbinfo.append("This will spend ALL coins in your wallet to")
+            mbinfo.append("the destination, after fees. Are you sure?")
+            reply = JMQtMessageBox(self,
+                                   '\n'.join([m + '<p>' for m in mbinfo]),
+                                   mbtype='question',
+                                   title='Sweep?')
+            if reply == QMessageBox.No:
+                self.giveUp()
+                return
         self.startButton.setEnabled(False)
         self.abortButton.setEnabled(True)
 
@@ -277,8 +284,6 @@ class JoinmarketTab(QWidget):
         #inherit format from BTCAmountEdit
         self.btc_amount_str = str(
             self.widgets[3][1].text()) + " " + self.widgets[3][1]._base_unit()
-        amount = self.widgets[3][1].get_amount()
-        log.debug("Got amount: " + str(amount))
         makercount = int(self.widgets[1][1].text())
         #ignoring mixdepth for now
         #mixdepth = int(self.widgets[2][1].text())
@@ -471,7 +476,7 @@ class JoinmarketTab(QWidget):
               'Mechanism for choosing counterparties',
               'The amount to send (units are shown).\n' +
               'If you enter 0, a SWEEP transaction\nwill be performed,' +
-              ' spending all the coins \nin the given mixdepth.']
+              ' spending all the coins \nin the wallet.']
         sT = [str, int, str, None]
         #todo maxmixdepth
         sMM = ['', (2, 20),
