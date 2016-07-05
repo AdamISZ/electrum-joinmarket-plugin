@@ -17,11 +17,11 @@ This is not as easy as we'd like, but hopefully will get better. Note that binar
 
 ### TAILS
 
-This process worked on TAILS 2.3 which has Electrum 2.6.3 shipped. Although it's a lot of steps it's actually very quick after the initial `update`:
+This process worked on TAILS 2.4 which has Electrum 2.6.3 shipped. Note that you must have set an administration password at the tails startup: select "yes" when asked for "More options?" at startup and set it. The other options can be left unchanged. Although it's a lot of steps it's actually very quick after the initial `update`:
 
 1. `sudo apt-get update`
 2. `sudo apt-get install libsodium-dev python-pip`
-3. `pip install --user libnacl`
+3. `torify pip install --user libnacl`
 4. `git clone https://github.com/AdamISZ/joinmarket_core`
 5. `cd joinmarket_core`
 6. `python setup.py install --user`
@@ -31,11 +31,12 @@ This process worked on TAILS 2.3 which has Electrum 2.6.3 shipped. Although it's
 9. `sudo cp -r joinmarket /usr/lib/python2.7/dist-packages/electrum_plugins/.`
 10. `sudo chmod 755 /usr/lib/python2.7/dist-packages/electrum_plugins/joinmarket`
 11. `sudo chmod 644 /usr/lib/python2.7/dist-packages/electrum_plugins/joinmarket/*.py`
-12. Change [this line](https://github.com/spesmilo/electrum/blob/2.6.3/lib/wallet.py#L1194) in `/usr/lib/python2.7/dist-packages/electrum/wallet.py` from `txin = tx.inputs[i]` to `txin = tx.inputs()[i]` (needs sudo to edit file)
+12. `sudo gedit /usr/lib/python2.7/dist-packages/electrum/wallet.py` . In the editor, change line 1194 from `txin = tx.inputs[i]` to `txin = tx.inputs()[i]`. Save and close the file after you've edited it.
 
-Then run `electrum` from anywhere, and enable the plugin via Tools->Plugins->Joinmarket.
+Then run `electrum` from anywhere, for example from the Applications "start menu" in Internet/Electrum Bitcoin Wallet.It might complain that persistence is disabled, but as long as you make sure you do not lose your 13 word recovery phrase, that does not matter, you can still continue.
+The joinmarket-plugin can be enabled in Electrum via Tools->Plugins->Joinmarket. Also click on "settings" near the joinmarket plugin and tick the "socks5" checkbox, so that it is active.
 
-The final step is the same bugfix as mentioned above. The first few steps (after the update) are to locally install the dependencies for joinmarket_core and the sudo edits towards the end are to manually install the joinmarket plugin into the plugin directory for the already-installed Electrum 2.6.3 (the chmods are needed otherwise Electrum can't read it while running as `amnesia`).
+Now you will see a new tab "Joinmarket" in Electrum and can use this to send funds more privately.
 
 ### MacOS and Windows
 
