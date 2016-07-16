@@ -10,10 +10,10 @@ This is not as easy as we'd like, but hopefully will get better. Note that binar
 ### Linux
 
 1. `pip install libnacl`
-2. git clone https://github.com/AdamISZ/joinmarket_core, then `python setup.py install` it.
+2. git clone https://github.com/AdamISZ/joinmarket_core, then `sudo python setup.py install` it.
 3. Use [Electrum's Linux "easy" installation link](https://electrum.org/#download):  `sudo pip install https://download.electrum.org/2.6.4/Electrum-2.6.4.tar.gz` 
-4. Bugfix: apply the patch https://github.com/spesmilo/electrum/commit/59d39108823989966e27a2f5df24c296cf2c1187 to Electrum. :cry: ; this manual source edit is needed since we want to do testing off the release, but Electrum will simply fail to sign transactions without this bugfix.
-5. git clone this repo (or zip) and manually copy its subdirectory `joinmarket` into the installation: `sudo cp -r joinmarket /usr/local/lib/python2.7/dist_packages/electrum_plugins/.` (replace with whatever the location of `dist_packages` is for your environment).
+4. Bugfix: apply the patch https://github.com/spesmilo/electrum/commit/59d39108823989966e27a2f5df24c296cf2c1187 to Electrum. :cry: ; this manual source edit is needed since we want to do testing off the release, but Electrum will simply fail to sign transactions without this bugfix. This can also be done by manually editing the electrum/wallet.py file and changing `txin = tx.inputs[i]` to `txin = tx.inputs()[i]`.
+5. git clone this repo (or zip) and manually copy its subdirectory `joinmarket` into the installation: `sudo cp -r joinmarket /usr/local/lib/python2.7/dist-packages/electrum_plugins/.` (replace with whatever the location of `dist-packages` is for your environment).
 
 ### TAILS
 
