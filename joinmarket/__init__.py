@@ -5,7 +5,8 @@ description = _(" ".join(["Ability to send payments as coinjoins with counterpar
                           "Paying minimal fees, you can immediately send your coins",
                           "with much better privacy. See https://github.com/joinmarket-org/joinmarket",
                           "for more details."]))
-requires = [('joinmarket_core','github.com/Joinmarket-Org/joinmarket_core')]
+requires = [('joinmarketclient','github.com/Joinmarket-Org/joinmarket-client'),
+            'twisted']
 #TODO: setting it here results in Joinmarket never loading.
 #It seems that Electrum will not load a plugin on startup if
 #it has any setting here.
