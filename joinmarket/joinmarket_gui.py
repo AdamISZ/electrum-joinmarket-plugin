@@ -201,8 +201,6 @@ class JoinmarketTab(QWidget):
         for i, x in enumerate(self.widgets):
             innerTopLayout.addWidget(x[0], i, 0)
             innerTopLayout.addWidget(x[1], i, 1, 1, 2)
-        self.widgets[0][1].editingFinished.connect(
-            lambda: self.checkAddress(self.widgets[0][1].text()))
         self.startButton = QPushButton('Start')
         self.startButton.setToolTip(
             'You will be prompted to decide whether to accept\n' +
@@ -231,14 +229,6 @@ class JoinmarketTab(QWidget):
 
     def updateConsoleText(self, txt):
         self.textedit.insertPlainText(txt)
-
-    def checkAddress(self, addr):
-        valid, errmsg = validate_address(str(addr))
-        if not valid:
-            JMQtMessageBox(self,
-                           "Bitcoin address not valid.\n" + errmsg,
-                           mbtype='warn',
-                           title="Error")
 
     def validateSettings(self):
         valid, errmsg = validate_address(self.widgets[0][1].text())
@@ -291,7 +281,7 @@ class JoinmarketTab(QWidget):
         #ignoring mixdepth for now
         #mixdepth = int(self.widgets[2][1].text())
         mixdepth = 0
-        if self.plugin.wallet.use_encryption:
+        if self.plugin.wallet.has_password():
             msg = []
             msg.append(_("Enter your password to proceed"))
             self.plugin.wrap_wallet.password = self.plugin.window.password_dialog(
@@ -312,15 +302,15 @@ class JoinmarketTab(QWidget):
                            external_addr=self.destaddr)
         if ignored_makers:
             self.taker.ignored_makers.extend(ignored_makers)
-        clientfactory = JMTakerClientProtocolFactory(taker)
+        clientfactory = JMTakerClientProtocolFactory(self.taker)
 
         #TODO obviously this doesn't work yet!
         thread = TaskThread(self)
         daemonport = 12345
-        thread.add(start_reactor,
+        thread.add(partial(start_reactor,
                    "localhost",
                    daemonport,
-                   clientfactory,
+                   clientfactory),
                    on_done=self.cleanUp)
         self.showStatusBarMsg("Connecting to IRC ...")
 
