@@ -13,10 +13,12 @@ from electrum_gui.qt.amountedit import BTCAmountEdit
 sys.path.insert(0, os.path.dirname(__file__))
 
 #import joinmarket
-from joinmarket_core import jm_single, validate_address, random_nick, get_log, \
-     IRCMessageChannel, weighted_order_choose, joinmarket_alert, core_alert
+from joinmarketclient import (
+    Taker, load_program_config, JMTakerClientProtocolFactory, start_reactor,
+    validate_address, jm_single, get_log, choose_orders, choose_sweep_orders,
+    pick_order, cheapest_order_choose, weighted_order_choose, debug_dump_object,
+    Wallet, BitcoinCoreWallet, estimate_tx_fee, start_reactor)
 
-from sendpayment import SendPayment, PT
 log = get_log()
 
 #configuration types
@@ -26,8 +28,7 @@ config_types = {'check_high_fee': int,
                 'port': int,
                 'usessl': bool,
                 'socks5': bool,
-                'socks5_port': int,
-                }
+                'socks5_port': int,}
 config_tips = {
     'check_high_fee': 'Percent fee considered dangerously high, default 2%',
     'txfee_default': 'Number of satoshis per counterparty for an initial\n' +
@@ -43,6 +44,7 @@ config_tips = {
     'socks5_host': 'host for SOCKS5 proxy',
     'socks5_port': 'port for SOCKS5 proxy',
 }
+
 
 def update_config_for_gui():
     '''The default joinmarket config does not contain these GUI settings
@@ -61,12 +63,12 @@ def update_config_for_gui():
             jm_single().config.set("GUI", gcn, gcv)
 
 
-
 def persist_config(file_path):
     '''This loses all comments in the config file.
     TODO: possibly correct that.'''
     with open(file_path, 'w') as f:
         jm_single().config.write(f)
+
 
 class TaskThread(QtCore.QThread):
     '''Thread that runs background tasks.  Callbacks are guaranteed
@@ -107,6 +109,7 @@ class TaskThread(QtCore.QThread):
     def stop(self):
         self.tasks.put(None)
 
+
 class QtHandler(logging.Handler):
 
     def __init__(self):
@@ -116,9 +119,11 @@ class QtHandler(logging.Handler):
         record = self.format(record)
         if record: XStream.stdout().write('%s\n' % record)
 
+
 handler = QtHandler()
 handler.setFormatter(logging.Formatter("%(levelname)s:%(message)s"))
 log.addHandler(handler)
+
 
 class XStream(QtCore.QObject):
     _stdout = None
@@ -149,7 +154,7 @@ class XStream(QtCore.QObject):
             sys.stderr = XStream._stderr
         return XStream._stderr
 
-    
+
 def JMQtMessageBox(obj, msg, mbtype='info', title=''):
     mbtypes = {'info': QMessageBox.information,
                'crit': QMessageBox.critical,
@@ -162,6 +167,7 @@ def JMQtMessageBox(obj, msg, mbtype='info', title=''):
     else:
         mbtypes[mbtype](obj, title, msg)
 
+
 class JoinmarketTab(QWidget):
 
     def __init__(self, plugin):
@@ -169,7 +175,9 @@ class JoinmarketTab(QWidget):
         self.plugin = plugin
         #manual counterparty choice disabled for now, see #7 on github.
         self.c_choosers = {
-            "randomly chosen but preferring cheaper offers": weighted_order_choose}
+            "randomly chosen but preferring cheaper offers":
+            weighted_order_choose
+        }
         #,"choose counterparties manually": weighted_order_choose}
         self.initUI()
         self.taker = None
@@ -238,9 +246,8 @@ class JoinmarketTab(QWidget):
             JMQtMessageBox(self, errmsg, mbtype='warn', title="Error")
             return False
         errs = ["Non-zero number of counterparties must be provided.",
-                "Mixdepth must be chosen.",
-                "Amount must be provided."]
-        for i in [1,3]:
+                "Mixdepth must be chosen.", "Amount must be provided."]
+        for i in [1, 3]:
             if self.widgets[i][1].text().size() == 0:
                 JMQtMessageBox(self, errs[i - 1], mbtype='warn', title="Error")
                 return False
@@ -275,15 +282,11 @@ class JoinmarketTab(QWidget):
         self.startButton.setEnabled(False)
         self.abortButton.setEnabled(True)
 
-        jm_single().nickname = random_nick()
-
         log.debug('starting sendpayment')
-
-        self.irc = IRCMessageChannel(jm_single().nickname)
         self.destaddr = str(self.widgets[0][1].text())
         #inherit format from BTCAmountEdit
-        self.btc_amount_str = str(
-            self.widgets[3][1].text()) + " " + self.widgets[3][1]._base_unit()
+        self.btc_amount_str = str(self.widgets[3][1].text(
+        )) + " " + self.widgets[3][1]._base_unit()
         makercount = int(self.widgets[1][1].text())
         #ignoring mixdepth for now
         #mixdepth = int(self.widgets[2][1].text())
@@ -294,33 +297,32 @@ class JoinmarketTab(QWidget):
             self.plugin.wrap_wallet.password = self.plugin.window.password_dialog(
                 '\n'.join(msg))
             try:
-                self.plugin.wallet.check_password(self.plugin.wrap_wallet.password)
+                self.plugin.wallet.check_password(
+                    self.plugin.wrap_wallet.password)
             except Exception as e:
                 JMQtMessageBox(self, "Wrong password: " + str(e), mbtype='crit')
                 self.giveUp()
                 return
 
-        self.taker = SendPayment(
-            self.irc,
-            self.plugin.wrap_wallet,
-            self.destaddr,
-            amount,
-            makercount,
-            jm_single().config.getint("GUI", "txfee_default"),
-            jm_single().config.getint("GUI", "order_wait_time"),
-            mixdepth,
-            False,
-            weighted_order_choose,
-            isolated=True)
-        self.pt = PT(self.taker)
+        self.taker = Taker(self.plugin.wrap_wallet,
+                           0,
+                           amount,
+                           makercount,
+                           order_chooser=weighted_order_choose,
+                           external_addr=self.destaddr)
         if ignored_makers:
-            self.pt.ignored_makers.extend(ignored_makers)
-        
+            self.taker.ignored_makers.extend(ignored_makers)
+        clientfactory = JMTakerClientProtocolFactory(taker)
+
+        #TODO obviously this doesn't work yet!
         thread = TaskThread(self)
-        thread.add(self.runIRC, on_done=self.cleanUp)
+        daemonport = 12345
+        thread.add(start_reactor,
+                   "localhost",
+                   daemonport,
+                   clientfactory,
+                   on_done=self.cleanUp)
         self.showStatusBarMsg("Connecting to IRC ...")
-        thread2 = TaskThread(self)
-        thread2.add(self.createTxThread, on_done=self.doTx)
 
     def createTxThread(self):
         self.orders, self.total_cj_fee, self.cjamount, self.utxos = self.pt.create_tx(
@@ -343,8 +345,8 @@ class JoinmarketTab(QWidget):
 
         #reset the btc amount display string if it's a sweep:
         if self.taker.amount == 0:
-            self.btc_amount_str = str(
-                (Decimal(self.cjamount) / Decimal('1e8'))) + " BTC"
+            self.btc_amount_str = str((Decimal(self.cjamount) / Decimal('1e8')
+                                      )) + " BTC"
 
         #TODO separate this out into a function
         mbinfo = []
@@ -391,23 +393,11 @@ class JoinmarketTab(QWidget):
             thread3 = TaskThread(self)
             thread3.add(
                 partial(self.pt.do_tx, self.total_cj_fee, self.orders,
-                        self.cjamount, self.utxos), on_done=None)
+                        self.cjamount, self.utxos),
+                on_done=None)
         else:
             self.giveUp()
             return
-
-    def runIRC(self):
-        try:
-            log.debug('starting irc')
-            self.irc.run()
-        except:
-            log.debug('CRASHING, DUMPING EVERYTHING')
-            #doesn't really work for electrum wallet
-            #debug_dump_object(w.wallet, ['addr_cache', 'keys', 'wallet_name',
-            #                             'seed'])
-            debug_dump_object(self.taker)
-            import traceback
-            log.debug(traceback.format_exc())
 
     def cleanUp(self):
         if not self.taker.txid:
@@ -479,8 +469,7 @@ class JoinmarketTab(QWidget):
     def getSettingsWidgets(self):
         results = []
         sN = ['Recipient address', 'Number of counterparties',
-              'Counterparty chooser',
-              'Amount']
+              'Counterparty chooser', 'Amount']
         sH = ['The address you want to send the payment to',
               'How many other parties to send to; if you enter 4\n' +
               ', there will be 5 participants, including you',
@@ -490,9 +479,7 @@ class JoinmarketTab(QWidget):
               ' spending all the coins \nin the wallet.']
         sT = [str, int, str, None]
         #todo maxmixdepth
-        sMM = ['', (2, 20),
-               '',
-               (0.00000001, 100.0, 8)]
+        sMM = ['', (2, 20), '', (0.00000001, 100.0, 8)]
         sD = ['', '3', '', '']
         ccCombo = QComboBox()
         for c in self.c_choosers.keys():
@@ -507,7 +494,7 @@ class JoinmarketTab(QWidget):
                 qle.setValidator(QIntValidator(*x[4]))
             results.append((ql, qle))
         return results
-    
+
     def resizeScroll(self, mini, maxi):
         self.textedit.verticalScrollBar().setValue(maxi)
 

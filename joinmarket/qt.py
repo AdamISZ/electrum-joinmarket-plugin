@@ -11,11 +11,10 @@ import sys, os
 sys.path.insert(0, os.path.dirname(__file__))
 
 #import joinmarket
-from joinmarket_core import load_program_config, jm_single, get_log, \
-     ElectrumWrapWallet
-
-from joinmarket_gui import JMQtMessageBox, JoinmarketTab, SettingsDialog, \
-     update_config_for_gui
+from joinmarketclient import (load_program_config, jm_single, get_log,
+                              ElectrumWrapWallet)
+from joinmarket_gui import (JMQtMessageBox, JoinmarketTab, SettingsDialog,
+                            update_config_for_gui)
 log = get_log()
 
 class Plugin(BasePlugin):
@@ -78,12 +77,16 @@ class Plugin(BasePlugin):
     def load_config(self, window):
         """Load/instantiate the joinmarket config file
         in electrum's home directory/joinmarket (e.g. ~/.electrum/joinmarket
-        Also load/instantiate the logs/ subdirectory for bot logs.
+        Also load/instantiate the logs/ subdirectory for bot logs,
+        and the cmttools/ directory for commitments storage.
         """
         try:
             jm_subdir = os.path.join(window.config.path, "joinmarket")
             if not os.path.exists(jm_subdir):
                 os.makedirs(jm_subdir)
+            cmttools_dir = os.path.join(jm_subdir, "cmttools")
+            if not os.path.exists(cmttools_dir):
+                os.makedirs(cmttools_dir)
             self.config_location = os.path.join(jm_subdir, "joinmarket.cfg")
             self.logs_location = os.path.join(jm_subdir, "logs")
             load_program_config(jm_subdir, "electrum")
@@ -121,8 +124,7 @@ class Plugin(BasePlugin):
         jm_single().bc_interface.set_wallet(wallet)
         self.wallet = wallet
         self.window = window
-        self.account = self.window.current_account
-        self.wrap_wallet = ElectrumWrapWallet(self.wallet, self.account)
+        self.wrap_wallet = ElectrumWrapWallet(self.wallet)
         self.jmtab = JoinmarketTab(self)
         self.window.tabs.addTab(self.jmtab, _('Joinmarket'))
         self.started = True

@@ -11,13 +11,13 @@ from optparse import OptionParser
 import time, os
 #sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), 'joinmarket'))
 
-from joinmarket_core import Taker, load_program_config, IRCMessageChannel
-from joinmarket_core import validate_address, jm_single
-from joinmarket_core import random_nick
-from joinmarket_core import get_log, choose_sweep_orders, choose_orders, \
-    pick_order, cheapest_order_choose, weighted_order_choose, debug_dump_object
-from joinmarket_core import Wallet, BitcoinCoreWallet
-from joinmarket_core.wallet import estimate_tx_fee
+from joinmarketclient import (Taker, load_program_config,
+                              JMTakerClientProtocolFactory, start_reactor,
+                              validate_address, jm_single, get_log,
+                              choose_orders, choose_sweep_orders, pick_order,
+                              cheapest_order_choose, weighted_order_choose,
+                              debug_dump_object, Wallet, BitcoinCoreWallet,
+                              estimate_tx_fee)
 
 log = get_log()
 

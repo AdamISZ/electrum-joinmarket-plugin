@@ -20,12 +20,12 @@ after everything else actually works!
     pip install https://download.electrum.org/2.7.12/Electrum-2.7.12.tar.gz 
  
 2. Copy the `joinmarket` folder into the Electrum installation:
-The joinmarket-plugin can be enabled in Electrum via Tools->Plugins->Joinmarket. Also click on "settings" near the joinmarket plugin and tick the "socks5" checkbox, so that it is active.
 
     cp -r joinmarket /usr/local/lib/python2.7/dist_packages/electrum_plugins/.
 
 (replace with whatever the location of `dist_packages` is for your environment).
 
+The joinmarket-plugin can be enabled in Electrum via Tools->Plugins->Joinmarket.
 
 ## Safety considerations and limitations
 
