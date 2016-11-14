@@ -299,7 +299,8 @@ class JoinmarketTab(QWidget):
                            amount,
                            makercount,
                            order_chooser=weighted_order_choose,
-                           external_addr=self.destaddr)
+                           external_addr=self.destaddr,
+                           callbacks=[self.checkOrders])
         if ignored_makers:
             self.taker.ignored_makers.extend(ignored_makers)
         clientfactory = JMTakerClientProtocolFactory(self.taker)
@@ -314,24 +315,16 @@ class JoinmarketTab(QWidget):
                    on_done=self.cleanUp)
         self.showStatusBarMsg("Connecting to IRC ...")
 
-    def createTxThread(self):
-        self.orders, self.total_cj_fee, self.cjamount, self.utxos = self.pt.create_tx(
-        )
-        log.debug("Finished create_tx")
-        #TODO this can't be done in a thread as currently built;
-        #how else? or fix?
-        #w.statusBar().showMessage("Found counterparties...")
-
-    def doTx(self):
-        if not self.orders:
+    def checkOrders(self, orders, total_cj_fee):
+        if not orders:
             JMQtMessageBox(self,
                            "Not enough matching orders found.",
                            mbtype='warn',
                            title="Error")
             self.giveUp()
-            return
+            return False
 
-        total_fee_pc = 1.0 * self.total_cj_fee / self.cjamount
+        total_fee_pc = 1.0 * total_cj_fee / self.cjamount
 
         #reset the btc amount display string if it's a sweep:
         if self.taker.amount == 0:
@@ -353,7 +346,7 @@ class JoinmarketTab(QWidget):
         mbinfo.append(" ")
         mbinfo.append("Counterparties chosen:")
         mbinfo.append('Name,     Order id, Coinjoin fee (sat.)')
-        for k, o in self.orders.iteritems():
+        for k, o in orders.iteritems():
             if o['ordertype'] == 'relorder':
                 display_fee = int(self.cjamount *
                                   float(o['cjfee'])) - int(o['txfee'])
@@ -363,7 +356,7 @@ class JoinmarketTab(QWidget):
                 log.debug("Unsupported order type: " + str(o['ordertype']) +
                           ", aborting.")
                 self.giveUp()
-                return
+                return False
             mbinfo.append(k + ', ' + str(o['oid']) + ',         ' + str(
                 display_fee))
         mbinfo.append('Total coinjoin fee = ' + str(self.total_cj_fee) +
@@ -378,16 +371,10 @@ class JoinmarketTab(QWidget):
                                mbtype='question',
                                title=title)
         if reply == QMessageBox.Yes:
-            log.debug('You agreed, transaction proceeding')
-            self.showStatusBarMsg("Building transaction...")
-            thread3 = TaskThread(self)
-            thread3.add(
-                partial(self.pt.do_tx, self.total_cj_fee, self.orders,
-                        self.cjamount, self.utxos),
-                on_done=None)
+            return True
         else:
             self.giveUp()
-            return
+            return False
 
     def cleanUp(self):
         if not self.taker.txid:
