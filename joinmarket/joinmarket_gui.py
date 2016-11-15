@@ -257,7 +257,7 @@ class JoinmarketTab(QWidget):
             return
         #all settings are valid; start
         #If sweep was requested, make sure the user knew it.
-        amount = self.widgets[3][1].get_amount()
+        self.cjamount = self.widgets[3][1].get_amount()
         if amount == 0:
             mbinfo = ["You selected amount zero, which means 'sweep'."]
             mbinfo.append("This will spend ALL coins in your wallet to")
@@ -296,16 +296,19 @@ class JoinmarketTab(QWidget):
 
         self.taker = Taker(self.plugin.wrap_wallet,
                            0,
-                           amount,
+                           self.cjamount,
                            makercount,
                            order_chooser=weighted_order_choose,
                            external_addr=self.destaddr,
-                           callbacks=[self.checkOrders])
+                           callbacks=[self.callback_checkOffers])
         if ignored_makers:
             self.taker.ignored_makers.extend(ignored_makers)
         clientfactory = JMTakerClientProtocolFactory(self.taker)
 
         #TODO obviously this doesn't work yet!
+        self.jmclient_obj = QObject()
+        self.jmclient_obj.connect(self.jmclient_obj, SIGNAL('JMCLIENT:offers'),
+                                                            self.checkOffers)
         thread = TaskThread(self)
         daemonport = 12345
         thread.add(partial(start_reactor,
@@ -315,17 +318,25 @@ class JoinmarketTab(QWidget):
                    on_done=self.cleanUp)
         self.showStatusBarMsg("Connecting to IRC ...")
 
-    def checkOrders(self, orders, total_cj_fee):
-        if not orders:
+    def callback_checkOffers(self, offers_fee):
+        """Receives the signal from the JMClient thread
+        """
+        self.offers_fee = offers_fee
+        self.jmclient_obj.emit(SIGNAL('JMCLIENT:offers'))
+
+    def checkOffers(self):
+        """Parse offers and total fee from client protocol,
+        allow the user to agree or decide.
+        """
+        if not self.offers_fee:
             JMQtMessageBox(self,
-                           "Not enough matching orders found.",
+                           "Not enough matching offers found.",
                            mbtype='warn',
                            title="Error")
             self.giveUp()
             return False
-
+        offers, total_cj_fee = self.offers_fee
         total_fee_pc = 1.0 * total_cj_fee / self.cjamount
-
         #reset the btc amount display string if it's a sweep:
         if self.taker.amount == 0:
             self.btc_amount_str = str((Decimal(self.cjamount) / Decimal('1e8')
@@ -346,7 +357,7 @@ class JoinmarketTab(QWidget):
         mbinfo.append(" ")
         mbinfo.append("Counterparties chosen:")
         mbinfo.append('Name,     Order id, Coinjoin fee (sat.)')
-        for k, o in orders.iteritems():
+        for k, o in offers.iteritems():
             if o['ordertype'] == 'relorder':
                 display_fee = int(self.cjamount *
                                   float(o['cjfee'])) - int(o['txfee'])
