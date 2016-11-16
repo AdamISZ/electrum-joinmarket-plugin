@@ -182,6 +182,7 @@ class JoinmarketTab(QWidget):
         #,"choose counterparties manually": weighted_order_choose}
         self.initUI()
         self.taker = None
+        self.filter_offers_response = None
 
     def initUI(self):
         vbox = QVBoxLayout(self)
@@ -324,6 +325,12 @@ class JoinmarketTab(QWidget):
         """
         self.offers_fee = offers_fee
         self.jmclient_obj.emit(SIGNAL('JMCLIENT:offers'))
+        #The JMClient thread must wait for user input
+        while not self.filter_offers_response:
+            time.sleep(0.1)
+        if self.filter_offers_response == "ACCEPT":
+            return True
+        return False
 
     def checkOffers(self):
         """Parse offers and total fee from client protocol,
@@ -383,10 +390,10 @@ class JoinmarketTab(QWidget):
                                mbtype='question',
                                title=title)
         if reply == QMessageBox.Yes:
-            return True
+            self.filter_offers_response = "ACCEPT"
         else:
+            self.filter_offers_response = "REJECT"
             self.giveUp()
-            return False
 
     def cleanUp(self):
         if not self.taker.txid:
