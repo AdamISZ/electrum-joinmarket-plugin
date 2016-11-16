@@ -17,7 +17,8 @@ from joinmarketclient import (
     Taker, load_program_config, JMTakerClientProtocolFactory, start_reactor,
     validate_address, jm_single, get_log, choose_orders, choose_sweep_orders,
     pick_order, cheapest_order_choose, weighted_order_choose, debug_dump_object,
-    Wallet, BitcoinCoreWallet, estimate_tx_fee, start_reactor)
+    Wallet, BitcoinCoreWallet, estimate_tx_fee, start_reactor, joinmarket_alert,
+    core_alert)
 
 log = get_log()
 
@@ -258,7 +259,7 @@ class JoinmarketTab(QWidget):
         #all settings are valid; start
         #If sweep was requested, make sure the user knew it.
         self.cjamount = self.widgets[3][1].get_amount()
-        if amount == 0:
+        if self.cjamount == 0:
             mbinfo = ["You selected amount zero, which means 'sweep'."]
             mbinfo.append("This will spend ALL coins in your wallet to")
             mbinfo.append("the destination, after fees. Are you sure?")
@@ -338,7 +339,7 @@ class JoinmarketTab(QWidget):
         offers, total_cj_fee = self.offers_fee
         total_fee_pc = 1.0 * total_cj_fee / self.cjamount
         #reset the btc amount display string if it's a sweep:
-        if self.taker.amount == 0:
+        if self.taker.cjamount == 0:
             self.btc_amount_str = str((Decimal(self.cjamount) / Decimal('1e8')
                                       )) + " BTC"
 
@@ -358,10 +359,10 @@ class JoinmarketTab(QWidget):
         mbinfo.append("Counterparties chosen:")
         mbinfo.append('Name,     Order id, Coinjoin fee (sat.)')
         for k, o in offers.iteritems():
-            if o['ordertype'] == 'relorder':
+            if o['ordertype'] == 'reloffer':
                 display_fee = int(self.cjamount *
                                   float(o['cjfee'])) - int(o['txfee'])
-            elif o['ordertype'] == 'absorder':
+            elif o['ordertype'] == 'absoffer':
                 display_fee = int(o['cjfee']) - int(o['txfee'])
             else:
                 log.debug("Unsupported order type: " + str(o['ordertype']) +
@@ -370,7 +371,7 @@ class JoinmarketTab(QWidget):
                 return False
             mbinfo.append(k + ', ' + str(o['oid']) + ',         ' + str(
                 display_fee))
-        mbinfo.append('Total coinjoin fee = ' + str(self.total_cj_fee) +
+        mbinfo.append('Total coinjoin fee = ' + str(total_cj_fee) +
                       ' satoshis, or ' + str(float('%.3g' % (
                           100.0 * total_fee_pc))) + '%')
         title = 'Check Transaction'
@@ -432,8 +433,8 @@ class JoinmarketTab(QWidget):
         #re-require password for next try
         self.plugin.wrap_wallet.password = None
         log.debug("Transaction aborted.")
-        if self.taker:
-            self.taker.msgchan.shutdown()
+        #if self.taker:
+        #    self.taker.msgchan.shutdown()
         self.abortButton.setEnabled(False)
         self.startButton.setEnabled(True)
         self.showStatusBarMsg("Transaction aborted.")
