@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 #import joinmarket
 from joinmarketclient import (load_program_config, jm_single, get_log,
-                              ElectrumWrapWallet)
+                              ElectrumWrapWallet, set_commitment_file)
 from joinmarket_gui import (JMQtMessageBox, JoinmarketTab, SettingsDialog,
                             update_config_for_gui)
 log = get_log()
@@ -79,6 +79,7 @@ class Plugin(BasePlugin):
         in electrum's home directory/joinmarket (e.g. ~/.electrum/joinmarket
         Also load/instantiate the logs/ subdirectory for bot logs,
         and the cmttools/ directory for commitments storage.
+        Create and set the commitments.json file.
         """
         try:
             jm_subdir = os.path.join(window.config.path, "joinmarket")
@@ -87,6 +88,7 @@ class Plugin(BasePlugin):
             cmttools_dir = os.path.join(jm_subdir, "cmttools")
             if not os.path.exists(cmttools_dir):
                 os.makedirs(cmttools_dir)
+            set_commitment_file(os.path.join(cmttools_dir, "commitments.json"))
             self.config_location = os.path.join(jm_subdir, "joinmarket.cfg")
             self.logs_location = os.path.join(jm_subdir, "logs")
             load_program_config(jm_subdir, "electrum")

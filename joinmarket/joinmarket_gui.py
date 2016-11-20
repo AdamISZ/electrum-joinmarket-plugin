@@ -183,6 +183,16 @@ class JoinmarketTab(QWidget):
         self.initUI()
         self.taker = None
         self.filter_offers_response = None
+        self.taker_info_response = None
+        #signals from client backend to GUI
+        self.jmclient_obj = QObject()
+        #This signal/callback requires user acceptance decision.
+        self.jmclient_obj.connect(self.jmclient_obj, SIGNAL('JMCLIENT:offers'),
+                                                            self.checkOffers)
+        #This signal/callback is for information only (including abort/error
+        #conditions which require no feedback from user.
+        self.jmclient_obj.connect(self.jmclient_obj, SIGNAL('JMCLIENT:info'),
+                                  self.takerInfo)
 
     def initUI(self):
         vbox = QVBoxLayout(self)
@@ -302,15 +312,14 @@ class JoinmarketTab(QWidget):
                            makercount,
                            order_chooser=weighted_order_choose,
                            external_addr=self.destaddr,
-                           callbacks=[self.callback_checkOffers])
+                           sign_method="wallet",
+                           callbacks=[self.callback_checkOffers,
+                                      self.callback_takerInfo])
         if ignored_makers:
             self.taker.ignored_makers.extend(ignored_makers)
         clientfactory = JMTakerClientProtocolFactory(self.taker)
 
         #TODO obviously this doesn't work yet!
-        self.jmclient_obj = QObject()
-        self.jmclient_obj.connect(self.jmclient_obj, SIGNAL('JMCLIENT:offers'),
-                                                            self.checkOffers)
         thread = TaskThread(self)
         daemonport = 12345
         thread.add(partial(start_reactor,
@@ -332,6 +341,25 @@ class JoinmarketTab(QWidget):
             return True
         return False
 
+    def callback_takerInfo(self, infotype, infomsg):
+        if infotype == "ABORT":
+            self.taker_info_type = 'warn'
+        elif infotype == "INFO":
+            self.taker_info_type = 'info'
+        else:
+            raise NotImplementedError
+        self.taker_infomsg = infomsg
+        self.jmclient_obj.emit(SIGNAL('JMCLIENT:info'))
+        while not self.taker_info_response:
+            time.sleep(0.1)
+        #No need to check response type, only OK for msgbox
+        self.taker_info_response = None
+        return
+
+    def takerInfo(self):
+        JMQtMessageBox(self, self.taker_infomsg, mbtype=self.taker_info_type)
+        self.taker_info_response = True
+
     def checkOffers(self):
         """Parse offers and total fee from client protocol,
         allow the user to agree or decide.
@@ -342,7 +370,7 @@ class JoinmarketTab(QWidget):
                            mbtype='warn',
                            title="Error")
             self.giveUp()
-            return False
+            return
         offers, total_cj_fee = self.offers_fee
         total_fee_pc = 1.0 * total_cj_fee / self.cjamount
         #reset the btc amount display string if it's a sweep:
