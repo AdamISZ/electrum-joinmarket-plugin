@@ -6,7 +6,6 @@ from decimal import Decimal
 import sys, os
 import Queue
 import logging
-from twisted.internet import reactor
 
 from electrum.i18n import _
 from electrum_gui.qt.util import *
@@ -45,6 +44,7 @@ config_tips = {
     'socks5': 'check to use SOCKS5 proxy for IRC connection',
     'socks5_host': 'host for SOCKS5 proxy',
     'socks5_port': 'port for SOCKS5 proxy',
+    'daemon_port': 'port on which the joinmarket daemon is running',
 }
 
 
@@ -55,8 +55,9 @@ def update_config_for_gui():
     These *will* be persisted to joinmarket.cfg, but that will not affect
     operation of the command line version.
     '''
-    gui_config_names = ['check_high_fee', 'txfee_default', 'order_wait_time']
-    gui_config_default_vals = ['2', '5000', '30']
+    gui_config_names = ['check_high_fee', 'txfee_default', 'order_wait_time',
+                        'daemon_port']
+    gui_config_default_vals = ['2', '5000', '30', '12345']
     if "GUI" not in jm_single().config.sections():
         jm_single().config.add_section("GUI")
     gui_items = jm_single().config.items("GUI")
@@ -162,7 +163,7 @@ def JMQtMessageBox(obj, msg, mbtype='info', title=''):
                'crit': QMessageBox.critical,
                'warn': QMessageBox.warning,
                'question': QMessageBox.question}
-    title = "JoinmarketQt - " + title
+    title = "Joinmarket - " + title
     if mbtype == 'question':
         return QMessageBox.question(obj, title, msg, QMessageBox.Yes,
                                     QMessageBox.No)
@@ -226,6 +227,7 @@ class JoinmarketTab(QWidget):
         #TODO: how to make the Abort button work, at least some of the time..
         self.abortButton = QPushButton('Abort')
         self.abortButton.setEnabled(False)
+        self.abortButton.connect(self.giveUp)
         buttons = QHBoxLayout()
         buttons.addStretch(1)
         buttons.addWidget(self.startButton)
@@ -268,7 +270,6 @@ class JoinmarketTab(QWidget):
         return True
 
     def startSendPayment(self, ignored_makers=None):
-        self.aborted = False
         if not self.validateSettings():
             return
         #all settings are valid; start
@@ -321,10 +322,9 @@ class JoinmarketTab(QWidget):
         self.clientfactory = JMTakerClientProtocolFactory(self.taker)
 
         thread = TaskThread(self)
-        daemonport = 12345
         thread.add(partial(start_reactor,
                    "localhost",
-                   daemonport,
+                   jm_single().config.getint("GUI", "daemon_port"),
                    self.clientfactory,
                    ish=False),
                    on_done=self.cleanUp)
@@ -364,7 +364,10 @@ class JoinmarketTab(QWidget):
         return
 
     def takerInfo(self):
-        JMQtMessageBox(self, self.taker_infomsg, mbtype=self.taker_info_type)
+        if self.taker_info_type == "info":
+            self.showStatusBarMsg(self.taker_infomsg)
+        else:
+            JMQtMessageBox(self, self.taker_infomsg, mbtype=self.taker_info_type)
         self.taker_info_response = True
 
     def checkOffers(self):
@@ -437,61 +440,41 @@ class JoinmarketTab(QWidget):
                 self.clientfactory.getClient().clientStart()
             else:
                 #a transaction failed; just stop
-                reactor.stop()
+                self.giveUp()
         else:
             if not self.taker_finished_res:
                 log.info("Did not complete successfully, shutting down")
             else:
                 log.info("All transactions completed correctly")
-            reactor.stop()
+            self.cleanUp()
 
     def cleanUp(self):
+        """Called when transaction ends, either
+        successfully or unsuccessfully.
+        """
         if not self.taker.txid:
-            if not self.aborted:
-                if not self.pt.ignored_makers:
-                    self.showStatusBarMsg("Transaction failed.")
-                    JMQtMessageBox(self,
-                                   "Transaction was not completed.",
-                                   mbtype='warn',
+            self.showStatusBarMsg("Transaction failed.")
+            JMQtMessageBox(self, "Transaction was not completed.", mbtype='warn',
                                    title="Failed")
-                else:
-                    reply = JMQtMessageBox(
-                        self,
-                        '\n'.join([
-                            "The following counterparties did not respond: ",
-                            ','.join(self.pt.ignored_makers),
-                            "This sometimes happens due to bad network connections.",
-                            "",
-                            "If you would like to try again, ignoring those",
-                            "counterparties, click Yes."
-                        ]),
-                        mbtype='question',
-                        title="Transaction not completed.")
-                    if reply == QMessageBox.Yes:
-                        self.startSendPayment(
-                            ignored_makers=self.pt.ignored_makers)
-                    else:
-                        self.giveUp()
-                        return
-
         else:
             self.showStatusBarMsg("Transaction completed successfully.")
             JMQtMessageBox(self,
                            "Transaction has been broadcast.\n" + "Txid: " +
                            str(self.taker.txid),
                            title="Success")
-            #no history persistence necessary for Electrum; Electrum does it.
 
+        self.clientfactory.getClient().shutdown_requested = True
+        self.plugin.wrap_wallet.password = None
         self.startButton.setEnabled(True)
         self.abortButton.setEnabled(False)
 
     def giveUp(self):
-        self.aborted = True
+        """Called when a transaction is aborted before completion.
+        """
+        self.clientfactory.getClient().shutdown_requested = True
         #re-require password for next try
         self.plugin.wrap_wallet.password = None
         log.debug("Transaction aborted.")
-        #if self.taker:
-        #    self.taker.msgchan.shutdown()
         self.abortButton.setEnabled(False)
         self.startButton.setEnabled(True)
         self.showStatusBarMsg("Transaction aborted.")
