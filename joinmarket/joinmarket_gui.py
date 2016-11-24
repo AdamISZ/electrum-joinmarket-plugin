@@ -227,7 +227,7 @@ class JoinmarketTab(QWidget):
         #TODO: how to make the Abort button work, at least some of the time..
         self.abortButton = QPushButton('Abort')
         self.abortButton.setEnabled(False)
-        self.abortButton.connect(self.giveUp)
+        self.abortButton.clicked.connect(self.giveUp)
         buttons = QHBoxLayout()
         buttons.addStretch(1)
         buttons.addWidget(self.startButton)
@@ -326,8 +326,7 @@ class JoinmarketTab(QWidget):
                    "localhost",
                    jm_single().config.getint("GUI", "daemon_port"),
                    self.clientfactory,
-                   ish=False),
-                   on_done=self.cleanUp)
+                   ish=False))
         self.showStatusBarMsg("Connecting to IRC ...")
 
     def callback_checkOffers(self, offers_fee):
