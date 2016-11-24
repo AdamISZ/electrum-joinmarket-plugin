@@ -6,6 +6,7 @@ from decimal import Decimal
 import sys, os
 import Queue
 import logging
+from twisted.internet import reactor
 
 from electrum.i18n import _
 from electrum_gui.qt.util import *
@@ -13,12 +14,12 @@ from electrum_gui.qt.amountedit import BTCAmountEdit
 sys.path.insert(0, os.path.dirname(__file__))
 
 #import joinmarket
-from joinmarketclient import (
+from jmbase import (debug_dump_object, joinmarket_alert, core_alert)
+from jmclient import (
     Taker, load_program_config, JMTakerClientProtocolFactory, start_reactor,
     validate_address, jm_single, get_log, choose_orders, choose_sweep_orders,
-    pick_order, cheapest_order_choose, weighted_order_choose, debug_dump_object,
-    Wallet, BitcoinCoreWallet, estimate_tx_fee, start_reactor, joinmarket_alert,
-    core_alert)
+    pick_order, cheapest_order_choose, weighted_order_choose, Wallet,
+    estimate_tx_fee)
 
 log = get_log()
 
@@ -193,6 +194,9 @@ class JoinmarketTab(QWidget):
         #conditions which require no feedback from user.
         self.jmclient_obj.connect(self.jmclient_obj, SIGNAL('JMCLIENT:info'),
                                   self.takerInfo)
+        #Signal indicating Taker has finished its work
+        self.jmclient_obj.connect(self.jmclient_obj, SIGNAL('JMCLIENT:finished'),
+                                  self.takerFinished)
 
     def initUI(self):
         vbox = QVBoxLayout(self)
@@ -290,9 +294,7 @@ class JoinmarketTab(QWidget):
         self.btc_amount_str = str(self.widgets[3][1].text(
         )) + " " + self.widgets[3][1]._base_unit()
         makercount = int(self.widgets[1][1].text())
-        #ignoring mixdepth for now
-        #mixdepth = int(self.widgets[2][1].text())
-        mixdepth = 0
+
         if self.plugin.wallet.has_password():
             msg = []
             msg.append(_("Enter your password to proceed"))
@@ -305,27 +307,26 @@ class JoinmarketTab(QWidget):
                 JMQtMessageBox(self, "Wrong password: " + str(e), mbtype='crit')
                 self.giveUp()
                 return
-
+        self.taker_schedule = [(0, self.cjamount, makercount, self.destaddr)]
         self.taker = Taker(self.plugin.wrap_wallet,
-                           0,
-                           self.cjamount,
-                           makercount,
+                           self.taker_schedule,
+                           False, #answeryes
                            order_chooser=weighted_order_choose,
-                           external_addr=self.destaddr,
                            sign_method="wallet",
                            callbacks=[self.callback_checkOffers,
-                                      self.callback_takerInfo])
+                                      self.callback_takerInfo,
+                                      self.callback_takerFinished])
         if ignored_makers:
             self.taker.ignored_makers.extend(ignored_makers)
-        clientfactory = JMTakerClientProtocolFactory(self.taker)
+        self.clientfactory = JMTakerClientProtocolFactory(self.taker)
 
-        #TODO obviously this doesn't work yet!
         thread = TaskThread(self)
         daemonport = 12345
         thread.add(partial(start_reactor,
                    "localhost",
                    daemonport,
-                   clientfactory),
+                   self.clientfactory,
+                   ish=False),
                    on_done=self.cleanUp)
         self.showStatusBarMsg("Connecting to IRC ...")
 
@@ -354,6 +355,12 @@ class JoinmarketTab(QWidget):
             time.sleep(0.1)
         #No need to check response type, only OK for msgbox
         self.taker_info_response = None
+        return
+
+    def callback_takerFinished(self, res, fromtx=False):
+        self.taker_finished_res = res
+        self.taker_finished_fromtx = fromtx
+        self.jmclient_obj.emit(SIGNAL('JMCLIENT:finished'))
         return
 
     def takerInfo(self):
@@ -422,6 +429,21 @@ class JoinmarketTab(QWidget):
         else:
             self.filter_offers_response = "REJECT"
             self.giveUp()
+
+    def takerFinished(self):
+        if self.taker_finished_fromtx:
+            if self.taker_finished_res:
+                jm_single().bc_interface.sync_wallet(wallet)
+                self.clientfactory.getClient().clientStart()
+            else:
+                #a transaction failed; just stop
+                reactor.stop()
+        else:
+            if not self.taker_finished_res:
+                log.info("Did not complete successfully, shutting down")
+            else:
+                log.info("All transactions completed correctly")
+            reactor.stop()
 
     def cleanUp(self):
         if not self.taker.txid:

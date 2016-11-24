@@ -10,9 +10,8 @@ import sys, os
 
 sys.path.insert(0, os.path.dirname(__file__))
 
-#import joinmarket
-from joinmarketclient import (load_program_config, jm_single, get_log,
-                              ElectrumWrapWallet, set_commitment_file)
+from jmclient import (load_program_config, jm_single, get_log,
+                      ElectrumWrapWallet, set_commitment_file)
 from joinmarket_gui import (JMQtMessageBox, JoinmarketTab, SettingsDialog,
                             update_config_for_gui)
 log = get_log()

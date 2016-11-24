@@ -1,31 +1,71 @@
 # electrum-joinmarket-plugin
 Plugin files for doing coinjoins via joinmarket in Electrum.
 
-**This is in the process of a major refactoring, it doesn't currently work, when
-it's been tested succesfully this file will update further.**
+**This is working, although very flaky; still very much WIP.**
 
 Currently only supports single payments, but see the bottom [section](#future-developments) for future possible improvements (it's better than you might think).
 
 ===
 
-## Installation
+## Installation for testing
 
-This is intended for Linux currently. Binary install may be investigated
+So far tested only on Linux, should probably work on Windows. Binary install will be developed
 after everything else actually works!
 
 (Either use virtualenv or use "sudo" prepended to these commands.)
 
-1. Use [Electrum's Linux "easy" installation link](https://electrum.org/#download):
-
-    pip install https://download.electrum.org/2.7.12/Electrum-2.7.12.tar.gz 
+0. Virtualenv setup:
+    `mkdir electrumplugin; cd electrumplugin; virtualenv .`
  
-2. Copy the `joinmarket` folder into the Electrum installation:
+1. Install the backend Joinmarket code. As described in the readme
+ for [Joinmarket-clientserver](https://github.com/AdamISZ/joinmarket-clientserver),
+ you need to install the daemon and the client-only components:
+ 
+     `git clone https://github.com/AdamISZ/joinmarket-clientserver`
+     `cd joinmarket-clientserver`
+     `python setup.py --backend install`
+     `python setup.py --client-only install`
 
-    cp -r joinmarket /usr/local/lib/python2.7/dist_packages/electrum_plugins/.
+ The backend automatically installs libnacl, but you need to have libsodium on the
+ system for it to work; see the instructions in the main Joinmarket [repo](https://github.com/Joinmarket-Org/joinmarket).
+ Both backend and front end install twisted automatically in your virtualenv.
+ libsecp256k1 is *not* required (you're only using Electrum's bitcoin code here).
 
-(replace with whatever the location of `dist_packages` is for your environment).
+2. Install the latest Electrum. Use [Electrum's Linux "easy" installation link](https://electrum.org/#download):
 
-The joinmarket-plugin can be enabled in Electrum via Tools->Plugins->Joinmarket.
+    `pip install https://download.electrum.org/2.7.12/Electrum-2.7.12.tar.gz` 
+
+3. Install this repo in your top-level virtualenv directory:
+
+    `git clone https://github.com/AdamISZ/electrum-joinmarket-plugin`
+ 
+4. Copy the `joinmarket` folder from this repo into the Electrum installation:
+
+    `cd electrum-joinmarket-plugin`
+    `cp -r joinmarket ../lib/python2.7/site-packages/electrum_plugins/.`
+
+ (that second line installs the joinmarket folder to the *virtualenv* code location).
+
+5. Start the daemon
+
+ From the top-level (directory called `electrumplugin` above), to run the daemon:
+ 
+     `cd joinmarket-clientserver/scripts; python joinmarketd.py 12345`
+  
+  As you can see this is a separate daemon executable and can be run from anywhere;
+  specify the port as the only argument; other configuration (like IRC channels) will be fed in from 
+  the Electrum plugin.
+ 
+6. Run Electrum and activate Joinmarket
+
+ The joinmarket-plugin can be enabled in Electrum via Tools->Plugins->Joinmarket.
+ Fill in the fields in the Joinmarket tab and hit "Start".
+
+This is still very raw, it needs testing work but unfortunately it is basically impossible
+to run Electrum against testnet. If you do decide to try it, be aware there will be bugs,
+although coin loss is highly unlikely, use small amounts.
+
+The remaining notes below have not been updated, they will probably change quite a bit:
 
 ## Safety considerations and limitations
 
