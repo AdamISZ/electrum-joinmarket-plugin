@@ -77,14 +77,14 @@ class Plugin(BasePlugin):
         """Load/instantiate the joinmarket config file
         in electrum's home directory/joinmarket (e.g. ~/.electrum/joinmarket
         Also load/instantiate the logs/ subdirectory for bot logs,
-        and the cmttools/ directory for commitments storage.
+        and the cmtdata/ directory for commitments storage.
         Create and set the commitments.json file.
         """
         try:
             jm_subdir = os.path.join(window.config.path, "joinmarket")
             if not os.path.exists(jm_subdir):
                 os.makedirs(jm_subdir)
-            cmttools_dir = os.path.join(jm_subdir, "cmttools")
+            cmttools_dir = os.path.join(jm_subdir, "cmtdata")
             if not os.path.exists(cmttools_dir):
                 os.makedirs(cmttools_dir)
             set_commitment_file(os.path.join(cmttools_dir, "commitments.json"))
