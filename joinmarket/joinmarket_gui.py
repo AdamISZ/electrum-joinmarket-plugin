@@ -57,7 +57,7 @@ def update_config_for_gui():
     '''
     gui_config_names = ['check_high_fee', 'txfee_default', 'order_wait_time',
                         'daemon_port']
-    gui_config_default_vals = ['2', '5000', '30', '12345']
+    gui_config_default_vals = ['2', '5000', '30', '27183']
     if "GUI" not in jm_single().config.sections():
         jm_single().config.add_section("GUI")
     gui_items = jm_single().config.items("GUI")
