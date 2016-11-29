@@ -186,6 +186,7 @@ class JoinmarketTab(QWidget):
         self.taker = None
         self.filter_offers_response = None
         self.taker_info_response = None
+        self.clientfactory = None
         #signals from client backend to GUI
         self.jmclient_obj = QObject()
         #This signal/callback requires user acceptance decision.
@@ -224,7 +225,6 @@ class JoinmarketTab(QWidget):
             'the transaction after connecting, and shown the\n' +
             'fees to pay; you can cancel at that point if you wish.')
         self.startButton.clicked.connect(self.startSendPayment)
-        #TODO: how to make the Abort button work, at least some of the time..
         self.abortButton = QPushButton('Abort')
         self.abortButton.setEnabled(False)
         self.abortButton.clicked.connect(self.giveUp)
@@ -319,14 +319,21 @@ class JoinmarketTab(QWidget):
                                       self.callback_takerFinished])
         if ignored_makers:
             self.taker.ignored_makers.extend(ignored_makers)
-        self.clientfactory = JMTakerClientProtocolFactory(self.taker)
-
-        thread = TaskThread(self)
-        thread.add(partial(start_reactor,
+        if not self.clientfactory:
+            #First run means we need to start: create clientfactory
+            #and start reactor Thread
+            self.clientfactory = JMTakerClientProtocolFactory(self.taker)
+            thread = TaskThread(self)
+            thread.add(partial(start_reactor,
                    "localhost",
                    jm_single().config.getint("GUI", "daemon_port"),
                    self.clientfactory,
                    ish=False))
+        else:
+            #load the new Taker
+            self.clientfactory.getClient().taker = self.taker
+            self.clientfactory.getClient().clientStart()
+
         self.showStatusBarMsg("Connecting to IRC ...")
 
     def callback_checkOffers(self, offers_fee):
@@ -339,6 +346,7 @@ class JoinmarketTab(QWidget):
             time.sleep(0.1)
         if self.filter_offers_response == "ACCEPT":
             return True
+        self.filter_offers_response = None
         return False
 
     def callback_takerInfo(self, infotype, infomsg):
@@ -462,7 +470,6 @@ class JoinmarketTab(QWidget):
                            str(self.taker.txid),
                            title="Success")
 
-        self.clientfactory.getClient().shutdown_requested = True
         self.plugin.wrap_wallet.password = None
         self.startButton.setEnabled(True)
         self.abortButton.setEnabled(False)
@@ -470,7 +477,6 @@ class JoinmarketTab(QWidget):
     def giveUp(self):
         """Called when a transaction is aborted before completion.
         """
-        self.clientfactory.getClient().shutdown_requested = True
         #re-require password for next try
         self.plugin.wrap_wallet.password = None
         log.debug("Transaction aborted.")
