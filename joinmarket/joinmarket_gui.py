@@ -17,8 +17,7 @@ from jmbase import (debug_dump_object, joinmarket_alert, core_alert)
 from jmclient import (
     Taker, load_program_config, JMTakerClientProtocolFactory, start_reactor,
     validate_address, jm_single, get_log, choose_orders, choose_sweep_orders,
-    pick_order, cheapest_order_choose, weighted_order_choose, Wallet,
-    estimate_tx_fee)
+    pick_order, cheapest_order_choose, weighted_order_choose, estimate_tx_fee)
 
 log = get_log()
 
@@ -330,7 +329,8 @@ class JoinmarketTab(QWidget):
                    self.clientfactory,
                    ish=False))
         else:
-            #load the new Taker
+            #load the new Taker; TODO this code crashes if daemon port
+            #is changed during run.
             self.clientfactory.getClient().taker = self.taker
             self.clientfactory.getClient().clientStart()
 

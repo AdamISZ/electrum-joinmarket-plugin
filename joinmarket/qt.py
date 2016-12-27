@@ -11,7 +11,8 @@ import sys, os
 sys.path.insert(0, os.path.dirname(__file__))
 
 from jmclient import (load_program_config, jm_single, get_log,
-                      ElectrumWrapWallet, set_commitment_file)
+                      set_commitment_file)
+from walletwrap import ElectrumWrapWallet
 from joinmarket_gui import (JMQtMessageBox, JoinmarketTab, SettingsDialog,
                             update_config_for_gui)
 log = get_log()
