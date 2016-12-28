@@ -1,5 +1,6 @@
 from jmclient import AbstractWallet
-from jmclient import btc
+from jmclient import btc, get_log, get_p2pk_vbyte
+import pprint
 
 class ElectrumWrapWallet(AbstractWallet): #pragma: no cover
     """A thin wrapper class over Electrum's own
