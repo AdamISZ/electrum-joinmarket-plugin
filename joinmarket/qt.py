@@ -92,7 +92,8 @@ class Plugin(BasePlugin):
             self.config_location = os.path.join(jm_subdir, "joinmarket.cfg")
             self.logs_location = os.path.join(jm_subdir, "logs")
             load_program_config(jm_subdir, "electrum")
-        except:
+        except Exception as e:
+            log.info("thrown: " + repr(e))
             JMQtMessageBox(window,
                            "\n".join([
                                "The joinmarket config failed to load.",
@@ -125,6 +126,8 @@ class Plugin(BasePlugin):
         #dummy blockchain interface (reads blockchain via wallet.network)
         jm_single().bc_interface.set_wallet(wallet)
         self.wallet = wallet
+        #currently only coinjoins with all-p2pkh are supported in JM
+        self.wallet.txin_type = 'p2pkh'
         self.window = window
         self.wrap_wallet = ElectrumWrapWallet(self.wallet)
         self.jmtab = JoinmarketTab(self)

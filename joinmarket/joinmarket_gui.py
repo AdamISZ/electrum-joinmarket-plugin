@@ -17,7 +17,7 @@ from jmbase import (debug_dump_object, joinmarket_alert, core_alert)
 from jmclient import (
     Taker, load_program_config, JMTakerClientProtocolFactory, start_reactor,
     validate_address, jm_single, get_log, choose_orders, choose_sweep_orders,
-    pick_order, cheapest_order_choose, weighted_order_choose, estimate_tx_fee)
+    cheapest_order_choose, weighted_order_choose, estimate_tx_fee)
 
 log = get_log()
 
@@ -307,10 +307,9 @@ class JoinmarketTab(QWidget):
                 JMQtMessageBox(self, "Wrong password: " + str(e), mbtype='crit')
                 self.giveUp()
                 return
-        self.taker_schedule = [(0, self.cjamount, makercount, self.destaddr)]
+        self.taker_schedule = [(0, self.cjamount, makercount, self.destaddr, 0, 0)]
         self.taker = Taker(self.plugin.wrap_wallet,
                            self.taker_schedule,
-                           False, #answeryes
                            order_chooser=weighted_order_choose,
                            sign_method="wallet",
                            callbacks=[self.callback_checkOffers,
@@ -336,7 +335,7 @@ class JoinmarketTab(QWidget):
 
         self.showStatusBarMsg("Connecting to IRC ...")
 
-    def callback_checkOffers(self, offers_fee):
+    def callback_checkOffers(self, offers_fee, cjamount):
         """Receives the signal from the JMClient thread
         """
         self.offers_fee = offers_fee
@@ -345,6 +344,7 @@ class JoinmarketTab(QWidget):
         while not self.filter_offers_response:
             time.sleep(0.1)
         if self.filter_offers_response == "ACCEPT":
+            self.filter_offers_response = None
             return True
         self.filter_offers_response = None
         return False
@@ -364,7 +364,8 @@ class JoinmarketTab(QWidget):
         self.taker_info_response = None
         return
 
-    def callback_takerFinished(self, res, fromtx=False):
+    def callback_takerFinished(self, res, fromtx=False, waittime=0.0, txdetails=None):
+        #not currently using waittime
         self.taker_finished_res = res
         self.taker_finished_fromtx = fromtx
         self.jmclient_obj.emit(SIGNAL('JMCLIENT:finished'))

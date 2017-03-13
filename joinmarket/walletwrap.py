@@ -2,6 +2,8 @@ from jmclient import AbstractWallet
 from jmclient import btc, get_log, get_p2pk_vbyte
 import pprint
 
+log = get_log()
+
 class ElectrumWrapWallet(AbstractWallet): #pragma: no cover
     """A thin wrapper class over Electrum's own
     wallet for joinmarket compatibility
@@ -68,8 +70,10 @@ class ElectrumWrapWallet(AbstractWallet): #pragma: no cover
         etx.deserialize()
         for i in addrs.keys():
             del etx._inputs[i]['scriptSig']
+            del etx._inputs[i]['pubkeys']
             self.ewallet.add_input_sig_info(etx._inputs[i], addrs[i])
             etx._inputs[i]['address'] = addrs[i]
+            etx._inputs[i]['type'] = 'p2pkh'
         self.ewallet.sign_transaction(etx, self.password)
         return etx.raw
 
