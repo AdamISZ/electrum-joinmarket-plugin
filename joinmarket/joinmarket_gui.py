@@ -441,11 +441,23 @@ class JoinmarketTab(QWidget):
             self.filter_offers_response = "REJECT"
             self.giveUp()
 
+    def on_new_tx(self, event, tx):
+        """Callback from Electrum network thread; since from non-GUI
+        thread must explicitly only pass signal, so partly duplicates
+        callback_takerFinished.
+        """
+        if self.taker and self.taker.txid:
+            if tx.txid() == self.taker.txid:
+                self.taker_finished_res = True
+                self.taker_finished_fromtx = False
+                self.jmclient_obj.emit(SIGNAL('JMCLIENT:finished'))
+            else:
+                log.info('received notify of tx, not ours')
+
     def takerFinished(self):
         if self.taker_finished_fromtx:
             if self.taker_finished_res:
-                jm_single().bc_interface.sync_wallet(wallet)
-                self.clientfactory.getClient().clientStart()
+                log.info("Finish callback success - should not be reachable")
             else:
                 #a transaction failed; just stop
                 self.giveUp()

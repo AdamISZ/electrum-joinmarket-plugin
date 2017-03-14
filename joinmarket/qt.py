@@ -131,6 +131,9 @@ class Plugin(BasePlugin):
         self.window = window
         self.wrap_wallet = ElectrumWrapWallet(self.wallet)
         self.jmtab = JoinmarketTab(self)
+        #needed to receive notification of unconfirmed transactions:
+        self.wallet.network.register_callback(self.jmtab.on_new_tx,
+                                              ['new_transaction'])
         self.window.tabs.addTab(self.jmtab, _('Joinmarket'))
         self.started = True
 
