@@ -1,15 +1,14 @@
 # electrum-joinmarket-plugin
 Plugin files for doing coinjoins via joinmarket in Electrum.
 
-**This is working, but still very much WIP.**
+This is still quite new and needs more testers. Be aware there may be bugs,
+although coin loss is highly unlikely, use small amounts, or testnet first.
 
-This is still quite raw, it needs testing work but unfortunately it is basically impossible
-to run Electrum against testnet. If you do decide to try it, be aware there may be bugs,
-although coin loss is highly unlikely, use small amounts.
+(If you do want to try on testnet, use `./electrum --testnet` on the command line).
 
 **Strongly recommended: use a fresh wallet, not one with a lot of coins, or a lot of outputs**.
 
-Also, the joinmarket plugin only supports wallets of type "Standard".
+Also, the joinmarket plugin **only supports wallets of type "Standard"**.
 
 Currently only supports single payments.
 
@@ -41,7 +40,7 @@ Activate the Joinmarket plugin from Tools->Plugins and the tab should pop up.
 
 1. Make a virtualenv to work in.
 
-2. Make sure you have libsodium on the system; see instructions in the [main repo](https://github.com/Joinmarket-Org/joinmarket).
+2. Make sure you have libsodium on the system; see instructions in the [JMCS install page](https://github.com/AdamISZ/joinmarket-clientserver/blob/master/docs/INSTALL.md).
  Note: libsecp256k1 is *not* required (you're only using Electrum's bitcoin code here).
  
  Once you have that, don't forget to `pip install libnacl` in your virtualenv.
@@ -50,8 +49,8 @@ Activate the Joinmarket plugin from Tools->Plugins and the tab should pop up.
 
      `git clone https://github.com/AdamISZ/joinmarket-clientserver`
      `cd joinmarket-clientserver`
-     `python setup.py --backend install`
-     `python setup.py --client-only install`
+     `python setupall.py --daemon`
+     `python setupall.py --client-only`
      `cd scripts`
      `python joinmarketd.py`
  
@@ -73,7 +72,7 @@ Activate the Joinmarket plugin from Tools->Plugins and the tab should pop up.
  or put it into system dist-packages if you're not using virtualenv.
  
 7. Run Electrum and activate Joinmarket
- As for "quick" version
+ - as for "quick" version.
 
 
 ##### A note on PyQt4 and virtualenv
