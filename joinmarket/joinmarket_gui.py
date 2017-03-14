@@ -349,10 +349,10 @@ class JoinmarketTab(QWidget):
             self.giveUp()
             return
         offers, total_cj_fee = self.offers_fee
-        total_fee_pc = 1.0 * total_cj_fee / self.cjamount
+        total_fee_pc = 1.0 * total_cj_fee / self.taker.cjamount
         #reset the btc amount display string if it's a sweep:
-        if self.taker.cjamount == 0:
-            self.btc_amount_str = str((Decimal(self.cjamount) / Decimal('1e8')
+        if self.cjamount == 0:
+            self.btc_amount_str = str((Decimal(self.taker.cjamount) / Decimal('1e8')
                                       )) + " BTC"
 
         #TODO separate this out into a function
@@ -372,7 +372,7 @@ class JoinmarketTab(QWidget):
         mbinfo.append('Name,     Order id, Coinjoin fee (sat.)')
         for k, o in offers.iteritems():
             if o['ordertype'] == 'reloffer':
-                display_fee = int(self.cjamount *
+                display_fee = int(self.taker.cjamount *
                                   float(o['cjfee'])) - int(o['txfee'])
             elif o['ordertype'] == 'absoffer':
                 display_fee = int(o['cjfee']) - int(o['txfee'])
@@ -568,14 +568,8 @@ class SettingsDialog(QDialog):
 
     def handleEdit(self, section, t, checked=None):
         if isinstance(t[1], QCheckBox):
-            if str(t[0].text()) == 'Testnet':
-                oname = 'network'
-                oval = 'testnet' if checked else 'mainnet'
-                add = '' if not checked else ' - Testnet'
-                w.setWindowTitle(appWindowTitle + add)
-            else:
-                oname = str(t[0].text())
-                oval = 'true' if checked else 'false'
+            oname = str(t[0].text())
+            oval = 'true' if checked else 'false'
             log.debug('setting section: ' + section + ' and name: ' + oname +
                       ' to: ' + oval)
             jm_single().config.set(section, oname, oval)
@@ -593,7 +587,7 @@ class SettingsDialog(QDialog):
                 t = config_types[name]
                 if t == bool:
                     qt = QCheckBox()
-                    if val == 'testnet' or val.lower() == 'true':
+                    if val.lower() == 'true':
                         qt.setChecked(True)
                 elif not t:
                     continue
@@ -603,6 +597,5 @@ class SettingsDialog(QDialog):
                         qt.setValidator(QIntValidator(0, 65535))
             else:
                 qt = QLineEdit(val)
-            label = 'Testnet' if name == 'network' else name
-            results.append((QLabel(label), qt))
+            results.append((QLabel(name), qt))
         return results
