@@ -1,6 +1,7 @@
 from jmclient import AbstractWallet
 from jmclient import btc, get_log, get_p2pk_vbyte
 import pprint
+import random
 
 log = get_log()
 
