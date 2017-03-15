@@ -21,6 +21,9 @@ from jmclient import (
 
 log = get_log()
 
+donation_address = "1B6Qiz2aZckduhZbMRvUNAfxSVD7fZNhrJ"
+PLUGIN_VERSION = '0.0.6'
+
 #configuration types
 config_types = {'check_high_fee': int,
                 'txfee_default': int,
@@ -174,6 +177,9 @@ class JoinmarketTab(QWidget):
         iFrame.setLayout(innerTopLayout)
 
         self.widgets = self.getSettingsWidgets()
+        self.aboutButton = QPushButton('About')
+        self.aboutButton.setToolTip('More about this plugin')
+        self.aboutButton.clicked.connect(self.showAboutDialog)
         for i, x in enumerate(self.widgets):
             innerTopLayout.addWidget(x[0], i, 0)
             innerTopLayout.addWidget(x[1], i, 1, 1, 2)
@@ -190,6 +196,7 @@ class JoinmarketTab(QWidget):
         buttons.addStretch(1)
         buttons.addWidget(self.startButton)
         buttons.addWidget(self.abortButton)
+        buttons.addWidget(self.aboutButton)
         innerTopLayout.addLayout(buttons, len(self.widgets) + 1, 0, 1, 2)
         splitter1 = QSplitter(QtCore.Qt.Vertical)
         self.textedit = QTextEdit()
@@ -202,6 +209,33 @@ class JoinmarketTab(QWidget):
         splitter1.setSizes([400, 200])
         self.setLayout(vbox)
         vbox.addWidget(splitter1)
+
+    def showAboutDialog(self):
+        msgbox = QDialog(self)
+        lyt = QVBoxLayout(msgbox)
+        msgbox.setWindowTitle("About the joinmarket electrum plugin")
+        label1 = QLabel()
+        label1.setText(
+            "<a href=" + "'https://github.com/AdamISZ/electrum-joinmarket-plugin'>"
+            + "Read more about this plugin.</a><p>" + "<p>".join(
+                ["Joinmarket electrum plugin version: " + PLUGIN_VERSION,
+                 "Messaging protocol version:" + " %s" % (
+                     str(jm_single().JM_VERSION)
+                 ), "Support this plugin -", "donate here: "]))
+        label2 = QLabel(donation_address)
+        for l in [label1, label2]:
+            l.setTextFormat(QtCore.Qt.RichText)
+            l.setTextInteractionFlags(QtCore.Qt.TextBrowserInteraction)
+            l.setOpenExternalLinks(True)
+        label2.setText("<a href='bitcoin:" + donation_address + "'>" +
+                       donation_address + "</a>")
+        lyt.addWidget(label1)
+        lyt.addWidget(label2)
+        btnbox = QDialogButtonBox(msgbox)
+        btnbox.setStandardButtons(QDialogButtonBox.Ok)
+        btnbox.accepted.connect(msgbox.accept)
+        lyt.addWidget(btnbox)
+        msgbox.exec_()
 
     def updateConsoleText(self, txt):
         self.textedit.insertPlainText(txt)
