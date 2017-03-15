@@ -185,7 +185,7 @@ class JoinmarketTab(QWidget):
         self.startButton.clicked.connect(self.startSendPayment)
         self.abortButton = QPushButton('Abort')
         self.abortButton.setEnabled(False)
-        self.abortButton.clicked.connect(self.giveUp)
+        self.abortButton.clicked.connect(self.abortTransactions)
         buttons = QHBoxLayout()
         buttons.addStretch(1)
         buttons.addWidget(self.startButton)
@@ -297,6 +297,9 @@ class JoinmarketTab(QWidget):
     def callback_checkOffers(self, offers_fee, cjamount):
         """Receives the signal from the JMClient thread
         """
+        if self.taker.aborted:
+            log.debug("Not processing offers, user has aborted.")
+            return False
         self.offers_fee = offers_fee
         self.jmclient_obj.emit(SIGNAL('JMCLIENT:offers'))
         #The JMClient thread must wait for user input
@@ -445,6 +448,10 @@ class JoinmarketTab(QWidget):
         self.plugin.wrap_wallet.password = None
         self.startButton.setEnabled(True)
         self.abortButton.setEnabled(False)
+
+    def abortTransactions(self):
+        self.taker.aborted = True
+        self.giveUp()
 
     def giveUp(self):
         """Called when a transaction is aborted before completion.
