@@ -335,9 +335,15 @@ class JoinmarketTab(QWidget):
 
     def takerInfo(self):
         if self.taker_info_type == "info":
-            self.showStatusBarMsg(self.taker_infomsg)
-        else:
+            #dialogs not OK, interrupts GUI thread
+            if len(self.taker_infomsg) > 200:
+                log.info("INFO: " + self.taker_infomsg)
+            else:
+                self.showStatusBarMsg(self.taker_infomsg)
+        elif self.taker_info_type == "warn":
             JMQtMessageBox(self, self.taker_infomsg, mbtype=self.taker_info_type)
+            #Abort signal explicitly means transaction will not continue
+            self.abortTransactions()
         self.taker_info_response = True
 
     def checkOffers(self):
