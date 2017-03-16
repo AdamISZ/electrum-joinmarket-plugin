@@ -12,11 +12,13 @@ Also, the joinmarket plugin **only supports wallets of type "Standard"**.
 
 Currently only supports single payments.
 
+Donations for this plugin work gratefully received at 1B6Qiz2aZckduhZbMRvUNAfxSVD7fZNhrJ.
+
 ===
 
-## Installation for testing
+## Installation
 
-So far only for Linux.
+(Assumes Linux, may work on Mac/Windows in some cases, but there is no binary yet)
 
 ##### Quick version 
 

@@ -22,7 +22,7 @@ from jmclient import (
 log = get_log()
 
 donation_address = "1B6Qiz2aZckduhZbMRvUNAfxSVD7fZNhrJ"
-PLUGIN_VERSION = '0.0.6'
+PLUGIN_VERSION = '0.0.7'
 
 #configuration types
 config_types = {'check_high_fee': int,
