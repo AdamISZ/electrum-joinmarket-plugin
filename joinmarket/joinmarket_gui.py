@@ -26,7 +26,9 @@ PLUGIN_VERSION = '0.0.7'
 
 #configuration types
 config_types = {'check_high_fee': int,
-                'txfee_default': int,
+                'absurd_fee_per_kb': int,
+                'tx_fees': int,
+                'minimum_makers': int,
                 'order_wait_time': int,
                 'port': int,
                 'usessl': bool,
@@ -34,11 +36,15 @@ config_types = {'check_high_fee': int,
                 'socks5_port': int,}
 config_tips = {
     'check_high_fee': 'Percent fee considered dangerously high, default 2%',
-    'txfee_default': 'Number of satoshis per counterparty for an initial\n' +
-    'tx fee estimate; this value is not usually used and is best left at\n' +
-    'the default of 5000',
+    'tx_fees': 'The number of blocks targetted for confirmation.\n' +
+    ' For example, "3" means setting a bitcoin transaction fee sufficient\n' +
+    ' to usually get 1 confirmation within 3 blocks (~ 30 minutes).',
     'order_wait_time': 'How long to wait for orders to arrive on entering\n' +
     'the message channel, default is 30s',
+    'absurd_fee_per_kb': 'Number of satoshis per kB, as proposed by the\n' +
+    ' electrum server, above which you reject',
+    'minimum_makers': 'If some counterparties don\'t respond, we will still\n' +
+    ' continue with the coinjoin, as long as more than this value respond.',
     'host': 'hostname for IRC server',
     'channel': 'channel name on IRC server',
     'port': 'port for connecting to IRC server',
@@ -57,9 +63,9 @@ def update_config_for_gui():
     These *will* be persisted to joinmarket.cfg, but that will not affect
     operation of the command line version.
     '''
-    gui_config_names = ['check_high_fee', 'txfee_default', 'order_wait_time',
+    gui_config_names = ['check_high_fee', 'order_wait_time',
                         'daemon_port']
-    gui_config_default_vals = ['2', '5000', '30', '27183']
+    gui_config_default_vals = ['2', '30', '27183']
     if "GUI" not in jm_single().config.sections():
         jm_single().config.add_section("GUI")
     gui_items = jm_single().config.items("GUI")
@@ -574,7 +580,9 @@ class SettingsDialog(QDialog):
         j = 0
         #Simplified from Joinmarket-Qt:
         #many internal settings are not relevant for Electrum
-        sections = ["GUI", "MESSAGING"]
+        #However, additional settings from POLICY which must be exposed:
+        #txfees, absurd_fees_per_kb and minimum_makers
+        sections = ["POLICY", "MESSAGING", "GUI"]
         for section in sections:
             pairs = jm_single().config.items(section)
             newSettingsFields = self.getSettingsFields(section,
@@ -629,6 +637,8 @@ class SettingsDialog(QDialog):
     def getSettingsFields(self, section, names):
         results = []
         for name in names:
+            if section == "POLICY" and name not in config_types:
+                continue
             val = jm_single().config.get(section, name)
             if name in config_types:
                 t = config_types[name]

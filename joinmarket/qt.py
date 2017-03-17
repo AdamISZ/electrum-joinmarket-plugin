@@ -3,6 +3,7 @@ from PyQt4 import QtCore
 from electrum.plugins import BasePlugin, hook
 from electrum.i18n import _
 from electrum_gui.qt.util import *
+from electrum.bitcoin import TESTNET
 
 from functools import partial
 
@@ -92,6 +93,12 @@ class Plugin(BasePlugin):
             self.config_location = os.path.join(jm_subdir, "joinmarket.cfg")
             self.logs_location = os.path.join(jm_subdir, "logs")
             load_program_config(jm_subdir, "electrum")
+            if TESTNET:
+                jm_single().config.set("BLOCKCHAIN", "network", "testnet")
+                log.info('working with testnet')
+            else:
+                jm_single().config.set("BLOCKCHAIN", "network", "mainnet")
+                log.info('working with mainnet')
         except Exception as e:
             log.info("thrown: " + repr(e))
             JMQtMessageBox(window,
