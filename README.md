@@ -1,4 +1,10 @@
 # electrum-joinmarket-plugin
+
+**(Note that this does not yet support the new segwit version of joinmarket,
+and probably will not do for a while. It may still be possible to use for
+the non-segwit version of joinmarket, use the joinmarketd binary release of joinmarket-clientserver
+linked below.)**
+
 Plugin files for doing coinjoins via joinmarket in Electrum.
 
 This is still quite new and needs more testers. Be aware there may be bugs,
@@ -22,8 +28,8 @@ Donations for this plugin work gratefully received at 1B6Qiz2aZckduhZbMRvUNAfxSV
 
 ##### Quick version 
 
-1. Download the binary [release](https://github.com/AdamISZ/joinmarket-clientserver/releases)
- of joinmarketd, put it anywhere and run `./joinmarketd` (serves default port 27183)
+1. Download the binary [release](https://github.com/AdamISZ/joinmarket-clientserver/releases/tag/v0.0.13)
+ of joinmarketd (note this is the first released version, not the most recent one), put it anywhere and run `./joinmarketd` (serves default port 27183)
 
  Note that this binary knows nothing about Bitcoin :) It just sends messages back and forth to (currently) IRC, and handles encryption.
 
@@ -40,6 +46,7 @@ Activate the Joinmarket plugin from Tools->Plugins and the tab should pop up.
 
 ##### From-source version
 
+**As per the note at the start of the README, this doesn't work at the moment.**
 1. Make a virtualenv to work in.
 
 2. Make sure you have libsodium on the system; see instructions in the [JMCS install page](https://github.com/AdamISZ/joinmarket-clientserver/blob/master/docs/INSTALL.md).
